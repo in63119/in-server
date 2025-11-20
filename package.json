@@ -26,7 +26,6 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
-    "tsconfig-paths": "^4.2.0",
     "@aws-sdk/client-ssm": "^3.936.0",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",

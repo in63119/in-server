@@ -1,7 +1,6 @@
-import 'tsconfig-paths/register';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { allowedOrigins } from '@src/common/constant/origin';
+import { allowedOrigins } from './common/constant/origin';
 import { loadSsmConfig } from './common/config/default.config';
 
 const env = process.env.ENV || '';

@@ -1,5 +1,5 @@
-import { loadSsm } from '@common/util';
-import { AwsConfigs, Config } from '@common/constant/type';
+import { loadSsm } from '../util';
+import { AwsConfigs, Config } from '../constant/type';
 
 const config: Config = {};
 

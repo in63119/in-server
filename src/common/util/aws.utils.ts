@@ -1,5 +1,5 @@
 import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm';
-import type { AwsConfigs } from '@src/common/constant/type';
+import type { AwsConfigs } from '../constant/type';
 
 export const loadSsm = async ({
   accessKey,
