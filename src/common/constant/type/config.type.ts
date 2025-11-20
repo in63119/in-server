@@ -1,5 +1,9 @@
 export type Config = {
-  system?: {
-    port?: number;
+  aws?: {
+    s3?: {
+      bucket?: string;
+      accessKey?: string;
+      secretKey?: string;
+    };
   };
 };

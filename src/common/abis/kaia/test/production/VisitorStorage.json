@@ -1,0 +1,157 @@
+{
+  "abi": [
+    {"inputs": [], "stateMutability": "nonpayable", "type": "constructor"},
+    {
+      "inputs": [{"internalType": "address", "name": "owner", "type": "address"}],
+      "name": "OwnableInvalidOwner",
+      "type": "error"
+    },
+    {
+      "inputs": [{"internalType": "address", "name": "account", "type": "address"}],
+      "name": "OwnableUnauthorizedAccount",
+      "type": "error"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {"indexed": true, "internalType": "address", "name": "owner", "type": "address"},
+        {"indexed": true, "internalType": "uint64", "name": "dayId", "type": "uint64"},
+        {"indexed": false, "internalType": "bytes32", "name": "ipHash", "type": "bytes32"}
+      ],
+      "name": "HashedVisitorRecorded",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {"indexed": true, "internalType": "address", "name": "previousOwner", "type": "address"},
+        {"indexed": true, "internalType": "address", "name": "newOwner", "type": "address"}
+      ],
+      "name": "OwnershipTransferred",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {"internalType": "address", "name": "owner", "type": "address"},
+        {"internalType": "uint64", "name": "dayId", "type": "uint64"},
+        {"internalType": "bytes32", "name": "ipHash", "type": "bytes32"}
+      ],
+      "name": "addHashedVisitor",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {"internalType": "address", "name": "owner", "type": "address"},
+        {"internalType": "bytes32", "name": "ipHash", "type": "bytes32"}
+      ],
+      "name": "addHashedVisitorForToday",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {"internalType": "address", "name": "owner", "type": "address"},
+        {"internalType": "uint64", "name": "dayId", "type": "uint64"},
+        {"internalType": "bytes32[]", "name": "ipHashes", "type": "bytes32[]"}
+      ],
+      "name": "addHashedVisitors",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {"internalType": "address", "name": "owner", "type": "address"},
+        {"internalType": "bytes32[]", "name": "ipHashes", "type": "bytes32[]"}
+      ],
+      "name": "addHashedVisitorsForToday",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "currentDayId",
+      "outputs": [{"internalType": "uint64", "name": "", "type": "uint64"}],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {"internalType": "address", "name": "owner", "type": "address"},
+        {"internalType": "uint64", "name": "dayId", "type": "uint64"},
+        {"internalType": "bytes32", "name": "ipHash", "type": "bytes32"}
+      ],
+      "name": "hasSeenHash",
+      "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {"internalType": "address", "name": "owner", "type": "address"},
+        {"internalType": "uint64", "name": "dayId", "type": "uint64"},
+        {"internalType": "uint256", "name": "index", "type": "uint256"}
+      ],
+      "name": "hashedVisitorAt",
+      "outputs": [{"internalType": "bytes32", "name": "", "type": "bytes32"}],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {"internalType": "address", "name": "owner", "type": "address"},
+        {"internalType": "uint64", "name": "dayId", "type": "uint64"}
+      ],
+      "name": "hashedVisitorCount",
+      "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {"internalType": "address", "name": "owner", "type": "address"},
+        {"internalType": "uint64", "name": "dayId", "type": "uint64"}
+      ],
+      "name": "hashedVisitorsOf",
+      "outputs": [{"internalType": "bytes32[]", "name": "", "type": "bytes32[]"}],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "owner",
+      "outputs": [{"internalType": "address", "name": "", "type": "address"}],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "renounceOwnership",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {"internalType": "address", "name": "owner", "type": "address"},
+        {"internalType": "uint64", "name": "dayId", "type": "uint64"}
+      ],
+      "name": "totalVisitorsOf",
+      "outputs": [{"internalType": "uint64", "name": "", "type": "uint64"}],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [{"internalType": "address", "name": "newOwner", "type": "address"}],
+      "name": "transferOwnership",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "address": "0xd5f00fffafDe8dBD76d864Fe8F1EF9e26d6278eb"
+}
