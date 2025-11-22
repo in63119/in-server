@@ -5,7 +5,7 @@ import {
   S3Client,
   paginateListObjectsV2,
 } from '@aws-sdk/client-s3';
-import config, { loadSsmConfig } from '../src/common/config/default.config';
+import { config, loadSsmConfig } from '../src/common/config/default.config';
 import dotenv from 'dotenv';
 
 dotenv.config({ path: '.env' });
