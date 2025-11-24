@@ -5,7 +5,7 @@ import config from './common/config/default.config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
-import { EmailModule, DBModule, AuthModule } from './modules';
+import { EmailModule, DBModule, AuthModule, Web3Module } from './modules';
 
 @Module({
   imports: [
@@ -13,6 +13,7 @@ import { EmailModule, DBModule, AuthModule } from './modules';
     EmailModule,
     DBModule,
     AuthModule,
+    Web3Module,
   ],
   controllers: [AppController],
   providers: [AppService],

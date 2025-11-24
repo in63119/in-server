@@ -1,6 +1,9 @@
 export type Config = {
   auth?: {
     hash?: string;
+    jwt?: {
+      accessSecret?: string;
+    };
   };
   aws?: {
     s3?: {

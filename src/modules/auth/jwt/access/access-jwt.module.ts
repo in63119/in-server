@@ -10,7 +10,7 @@ import { AccessJwtGuard } from './access-jwt.guard';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (cfg: ConfigService) => ({
-        secret: cfg.get<string>('jwt.accessSecret'),
+        secret: cfg.get<string>('auth.jwt.accessSecret'),
         signOptions: { expiresIn: '7d' },
       }),
     }),

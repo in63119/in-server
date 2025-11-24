@@ -10,6 +10,9 @@ export const loadSsmConfig = async (awsConfig: AwsConfigs) => {
     if (!config.auth) config.auth = {};
     config.auth.hash = ssmKeys.AUTH.HASH;
 
+    if (!config.auth.jwt) config.auth.jwt = {};
+    config.auth.jwt.accessSecret = ssmKeys.AUTH.JWT.ACCESS_SECRET;
+
     if (!config.aws) config.aws = {};
     if (!config.aws.s3) config.aws.s3 = {};
     config.aws.s3.bucket = ssmKeys.AWS.S3.BUCKET;

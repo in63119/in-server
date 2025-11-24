@@ -6,8 +6,8 @@ import { exceptions } from '../../../../common/exception/exceptions';
 export class AccessJwtService {
   constructor(private readonly jwt: JwtService) {}
 
-  generate(userId: number) {
-    return this.jwt.sign({ userId: userId, type: 'access' });
+  generate(email: string, challenge: string, credentialIds: string[]) {
+    return this.jwt.sign({ email, challenge, credentialIds, type: 'access' });
   }
 
   verify(token: string) {
