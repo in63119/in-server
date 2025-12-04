@@ -1,0 +1,192 @@
+{
+  "abi": [
+    {
+      "inputs": [{"internalType": "address", "name": "relayerManager_", "type": "address"}],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [{"internalType": "address", "name": "owner", "type": "address"}],
+      "name": "OwnableInvalidOwner",
+      "type": "error"
+    },
+    {
+      "inputs": [{"internalType": "address", "name": "account", "type": "address"}],
+      "name": "OwnableUnauthorizedAccount",
+      "type": "error"
+    },
+    {"inputs": [], "name": "SubscriberStorage__InvalidAccount", "type": "error"},
+    {"inputs": [], "name": "SubscriberStorage__InvalidPinCode", "type": "error"},
+    {"inputs": [], "name": "SubscriberStorage__InvalidSubscriberEmail", "type": "error"},
+    {"inputs": [], "name": "SubscriberStorage__PinNotFound", "type": "error"},
+    {"inputs": [], "name": "SubscriberStorage__SubscriberEmailAlreadyExists", "type": "error"},
+    {"inputs": [], "name": "SubscriberStorage__SubscriberEmailNotFound", "type": "error"},
+    {
+      "anonymous": false,
+      "inputs": [
+        {"indexed": true, "internalType": "address", "name": "previousOwner", "type": "address"},
+        {"indexed": true, "internalType": "address", "name": "newOwner", "type": "address"}
+      ],
+      "name": "OwnershipTransferred",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {"indexed": true, "internalType": "address", "name": "account", "type": "address"},
+        {"indexed": false, "internalType": "string", "name": "pinCode", "type": "string"}
+      ],
+      "name": "PinCodeCleared",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {"indexed": true, "internalType": "address", "name": "account", "type": "address"},
+        {"indexed": false, "internalType": "string", "name": "pinCode", "type": "string"},
+        {"indexed": false, "internalType": "uint64", "name": "expiresAt", "type": "uint64"}
+      ],
+      "name": "PinCodeStored",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {"indexed": true, "internalType": "address", "name": "relayerManager", "type": "address"}
+      ],
+      "name": "RelayerManagerUpdated",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {"indexed": true, "internalType": "address", "name": "account", "type": "address"},
+        {"indexed": false, "internalType": "string", "name": "email", "type": "string"}
+      ],
+      "name": "SubscriberEmailAdded",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {"indexed": true, "internalType": "address", "name": "account", "type": "address"},
+        {"indexed": false, "internalType": "string", "name": "email", "type": "string"}
+      ],
+      "name": "SubscriberEmailRemoved",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {"internalType": "address", "name": "account", "type": "address"},
+        {"internalType": "string", "name": "subscriberEmail", "type": "string"}
+      ],
+      "name": "addSubscriberEmail",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {"internalType": "address", "name": "account", "type": "address"},
+        {"internalType": "string", "name": "pinCode", "type": "string"}
+      ],
+      "name": "claimPinCode",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {"internalType": "address", "name": "account", "type": "address"},
+        {"internalType": "string", "name": "pinCode", "type": "string"}
+      ],
+      "name": "clearPinCode",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {"internalType": "address", "name": "account", "type": "address"},
+        {"internalType": "string", "name": "pinCode", "type": "string"}
+      ],
+      "name": "getPinCode",
+      "outputs": [
+        {
+          "components": [
+            {"internalType": "string", "name": "pinCode", "type": "string"},
+            {"internalType": "uint64", "name": "expiresAt", "type": "uint64"}
+          ],
+          "internalType": "struct SubscriberStorage.PinRecord",
+          "name": "",
+          "type": "tuple"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [{"internalType": "address", "name": "account", "type": "address"}],
+      "name": "getSubscriberEmails",
+      "outputs": [{"internalType": "string[]", "name": "", "type": "string[]"}],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {"internalType": "address", "name": "account", "type": "address"},
+        {"internalType": "string", "name": "pinCode", "type": "string"}
+      ],
+      "name": "isPinCodeActive",
+      "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "owner",
+      "outputs": [{"internalType": "address", "name": "", "type": "address"}],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "relayerManager",
+      "outputs": [{"internalType": "contract RelayerManager", "name": "", "type": "address"}],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {"internalType": "address", "name": "account", "type": "address"},
+        {"internalType": "string", "name": "subscriberEmail", "type": "string"}
+      ],
+      "name": "removeSubscriberEmail",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "renounceOwnership",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [{"internalType": "address", "name": "relayerManager_", "type": "address"}],
+      "name": "setRelayerManager",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [{"internalType": "address", "name": "newOwner", "type": "address"}],
+      "name": "transferOwnership",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "address": "0x618724EFb68A70f42e143b50103d9B361917BAc6"
+}

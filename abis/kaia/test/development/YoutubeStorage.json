@@ -1,0 +1,187 @@
+{
+  "abi": [
+    {"inputs": [], "stateMutability": "nonpayable", "type": "constructor"},
+    {
+      "inputs": [{"internalType": "address", "name": "owner", "type": "address"}],
+      "name": "OwnableInvalidOwner",
+      "type": "error"
+    },
+    {
+      "inputs": [{"internalType": "address", "name": "account", "type": "address"}],
+      "name": "OwnableUnauthorizedAccount",
+      "type": "error"
+    },
+    {"inputs": [], "name": "YoutubeStorage__IndexOutOfBounds", "type": "error"},
+    {"inputs": [], "name": "YoutubeStorage__InvalidAccount", "type": "error"},
+    {"inputs": [], "name": "YoutubeStorage__VideoNotFound", "type": "error"},
+    {
+      "anonymous": false,
+      "inputs": [
+        {"indexed": true, "internalType": "address", "name": "previousOwner", "type": "address"},
+        {"indexed": true, "internalType": "address", "name": "newOwner", "type": "address"}
+      ],
+      "name": "OwnershipTransferred",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {"indexed": true, "internalType": "address", "name": "account", "type": "address"},
+        {"indexed": true, "internalType": "string", "name": "id", "type": "string"}
+      ],
+      "name": "VideoDeleted",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {"indexed": true, "internalType": "address", "name": "account", "type": "address"},
+        {"indexed": true, "internalType": "string", "name": "id", "type": "string"},
+        {"indexed": false, "internalType": "string", "name": "title", "type": "string"}
+      ],
+      "name": "VideoStored",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {"indexed": true, "internalType": "address", "name": "account", "type": "address"},
+        {"indexed": true, "internalType": "string", "name": "id", "type": "string"},
+        {"indexed": false, "internalType": "string", "name": "title", "type": "string"}
+      ],
+      "name": "VideoUpdated",
+      "type": "event"
+    },
+    {
+      "inputs": [{"internalType": "string", "name": "videoId", "type": "string"}],
+      "name": "deleteMyVideo",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {"internalType": "address", "name": "account", "type": "address"},
+        {"internalType": "string", "name": "videoId", "type": "string"}
+      ],
+      "name": "deleteVideoFor",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {"internalType": "address", "name": "account", "type": "address"},
+        {"internalType": "uint256", "name": "index", "type": "uint256"}
+      ],
+      "name": "getVideo",
+      "outputs": [
+        {
+          "components": [
+            {"internalType": "string", "name": "id", "type": "string"},
+            {"internalType": "string", "name": "title", "type": "string"},
+            {"internalType": "string[]", "name": "keyPoints", "type": "string[]"}
+          ],
+          "internalType": "struct YoutubeStorage.YouTubeVideo",
+          "name": "",
+          "type": "tuple"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [{"internalType": "address", "name": "account", "type": "address"}],
+      "name": "getVideoCount",
+      "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [{"internalType": "address", "name": "account", "type": "address"}],
+      "name": "getVideos",
+      "outputs": [
+        {
+          "components": [
+            {"internalType": "string", "name": "id", "type": "string"},
+            {"internalType": "string", "name": "title", "type": "string"},
+            {"internalType": "string[]", "name": "keyPoints", "type": "string[]"}
+          ],
+          "internalType": "struct YoutubeStorage.YouTubeVideo[]",
+          "name": "",
+          "type": "tuple[]"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "owner",
+      "outputs": [{"internalType": "address", "name": "", "type": "address"}],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "renounceOwnership",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {"internalType": "string", "name": "videoId", "type": "string"},
+        {"internalType": "string", "name": "title", "type": "string"},
+        {"internalType": "string[]", "name": "keyPoints", "type": "string[]"}
+      ],
+      "name": "saveMyVideo",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {"internalType": "address", "name": "account", "type": "address"},
+        {"internalType": "string", "name": "videoId", "type": "string"},
+        {"internalType": "string", "name": "title", "type": "string"},
+        {"internalType": "string[]", "name": "keyPoints", "type": "string[]"}
+      ],
+      "name": "saveVideoFor",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [{"internalType": "address", "name": "newOwner", "type": "address"}],
+      "name": "transferOwnership",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {"internalType": "string", "name": "videoId", "type": "string"},
+        {"internalType": "string", "name": "title", "type": "string"},
+        {"internalType": "string[]", "name": "keyPoints", "type": "string[]"}
+      ],
+      "name": "updateMyVideo",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {"internalType": "address", "name": "account", "type": "address"},
+        {"internalType": "string", "name": "videoId", "type": "string"},
+        {"internalType": "string", "name": "title", "type": "string"},
+        {"internalType": "string[]", "name": "keyPoints", "type": "string[]"}
+      ],
+      "name": "updateVideoFor",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "address": "0x0E9b320168558fd066FFe1E50CF7bE01bf5bEF85"
+}

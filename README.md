@@ -8,11 +8,19 @@ Minimal Gin REST starter that mirrors a NestJS-style layer split (handler/servic
 # install deps
 go mod tidy
 
-# run dev
-go run ./cmd/api
+# dev server
+make run
 
 # build static binary
 make build
+
+# format / tidy / test
+make fmt
+make tidy
+make test
+
+# sync ABIs from S3 (requires AWS env)
+make sync-abi
 ```
 
 ## Structure
