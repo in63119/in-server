@@ -35,13 +35,12 @@ func (s *Server) Run() error {
 }
 
 func setGinMode(env string) {
-	if env == "production" || env == "prod" {
+	switch env {
+	case "production":
 		gin.SetMode(gin.ReleaseMode)
-		return
+	case "development":
+		gin.SetMode(gin.DebugMode)
+	default:
+		gin.SetMode(gin.DebugMode)
 	}
-	if env == "test" {
-		gin.SetMode(gin.TestMode)
-		return
-	}
-	gin.SetMode(gin.DebugMode)
 }
