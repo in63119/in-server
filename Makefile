@@ -1,6 +1,6 @@
 BINARY ?= bin/api
 
-.PHONY: build run fmt tidy test
+.PHONY: build run fmt tidy test sync-abi
 
 build: fmt
 	GO111MODULE=on go build -o $(BINARY) ./cmd/api
@@ -16,3 +16,6 @@ tidy:
 
 test:
 	go test ./...
+
+sync-abi:
+	go run ./scripts/sync-abi.go
