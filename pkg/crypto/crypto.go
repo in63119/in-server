@@ -56,7 +56,6 @@ func Decrypt(encoded, secret string) (string, error) {
 		return plain, nil
 	}
 
-	// Fallback for data encrypted with the previous MD5-based derivation.
 	if legacy, legacyErr := decryptWithParams(ct, []byte(secret), salt, evpBytesToKeyMD5); legacyErr == nil {
 		return legacy, nil
 	}

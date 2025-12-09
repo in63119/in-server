@@ -7,9 +7,17 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/common"
+	gethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+
+	"in-server/pkg/abis"
+	"in-server/pkg/config"
+	appcrypto "in-server/pkg/crypto"
+	"in-server/pkg/firebase"
+	"in-server/pkg/types"
 )
 
 type Client struct {
@@ -62,5 +70,131 @@ func parsePrivateKey(hexKey string) (*ecdsa.PrivateKey, error) {
 	if key == "" {
 		return nil, fmt.Errorf("private key is empty")
 	}
-	return crypto.HexToECDSA(key)
+	return gethcrypto.HexToECDSA(key)
+}
+
+type Accounts struct {
+	Owner    string
+	Relayer  string
+	Relayer2 string
+	Relayer3 string
+}
+
+func AccountsFromConfig(cfg config.Config) (Accounts, error) {
+	salt := strings.TrimSpace(cfg.Auth.Hash)
+	if salt == "" {
+		return Accounts{}, fmt.Errorf("auth hash is empty")
+	}
+
+	decrypt := func(label, value string) (string, error) {
+		out, err := appcrypto.Decrypt(value, salt)
+		if err != nil {
+			return "", fmt.Errorf("decrypt %s: %w", label, err)
+		}
+		return strings.TrimSpace(out), nil
+	}
+
+	owner, err := decrypt("owner", cfg.Blockchain.PrivateKey.Owner)
+	if err != nil {
+		return Accounts{}, err
+	}
+
+	relayer := strings.TrimSpace(cfg.Blockchain.PrivateKey.Relayer)
+	if relayer == "" {
+		return Accounts{}, fmt.Errorf("relayer private key is empty")
+	}
+
+	relayer2, err := decrypt("relayer2", cfg.Blockchain.PrivateKey.Relayer2)
+	if err != nil {
+		return Accounts{}, err
+	}
+
+	relayer3, err := decrypt("relayer3", cfg.Blockchain.PrivateKey.Relayer3)
+	if err != nil {
+		return Accounts{}, err
+	}
+
+	return Accounts{
+		Owner:    owner,
+		Relayer:  relayer,
+		Relayer2: relayer2,
+		Relayer3: relayer3,
+	}, nil
+}
+
+func (c *Client) ReadyRelayer(ctx context.Context, fb *firebase.Client, cfg config.Config) (*bind.TransactOpts, error) {
+	if c == nil {
+		return nil, fmt.Errorf("client is nil")
+	}
+	accts, err := AccountsFromConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	relayerMap, exists, err := firebase.Read[map[string]types.FirebaseRelayer](ctx, fb, "relayers")
+	if err != nil {
+		return nil, fmt.Errorf("read firebase relayers: %w", err)
+	}
+	if !exists {
+		return nil, fmt.Errorf("no relayer data found in firebase")
+	}
+
+	candidates := []string{accts.Relayer, accts.Relayer2, accts.Relayer3}
+
+	for _, pk := range candidates {
+		if pk == "" {
+			continue
+		}
+		addr := strings.ToLower(addressFromPrivateKey(pk).Hex())
+
+		ready := false
+		for _, entry := range relayerMap {
+			if strings.ToLower(strings.TrimSpace(entry.Address)) == addr && entry.Status == types.RelayerStatusReady {
+				ready = true
+				break
+			}
+		}
+		if ready {
+			return c.NewTransactorFromKey(pk)
+		}
+	}
+
+	return nil, fmt.Errorf("no available relayer marked Ready")
+}
+
+func addressFromPrivateKey(hexKey string) common.Address {
+	key, err := parsePrivateKey(hexKey)
+	if err != nil {
+		return common.Address{}
+	}
+	return gethcrypto.PubkeyToAddress(key.PublicKey)
+}
+
+func (c *Client) Contract(name types.ContractName, cfg config.Config) (*bind.BoundContract, common.Address, error) {
+	if c == nil || c.rpc == nil {
+		return nil, common.Address{}, fmt.Errorf("client is nil")
+	}
+
+	artifacts, err := abis.Get(cfg.Env)
+	if err != nil {
+		return nil, common.Address{}, fmt.Errorf("load abis: %w", err)
+	}
+
+	artifact, ok := artifacts[name]
+	if !ok {
+		return nil, common.Address{}, fmt.Errorf("contract %s not found", name)
+	}
+
+	addr := common.HexToAddress(artifact.Address)
+	if addr == (common.Address{}) {
+		return nil, common.Address{}, fmt.Errorf("contract %s address empty", name)
+	}
+
+	parsedABI, err := abi.JSON(strings.NewReader(string(artifact.ABI)))
+	if err != nil {
+		return nil, common.Address{}, fmt.Errorf("parse abi for %s: %w", name, err)
+	}
+
+	bound := bind.NewBoundContract(addr, parsedABI, c.rpc, c.rpc, c.rpc)
+	return bound, addr, nil
 }
