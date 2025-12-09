@@ -2,12 +2,15 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"log"
+	"time"
 
 	"github.com/joho/godotenv"
 
 	"in-server/internal/server"
 	"in-server/pkg/config"
+	"in-server/pkg/firebase"
 	"in-server/pkg/logger"
 )
 
@@ -22,6 +25,27 @@ func main() {
 	}
 	if err := config.LoadSSM(context.Background(), &cfg); err != nil {
 		log.Fatalf("load ssm config: %v", err)
+	}
+
+	{
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		fbClient, err := firebase.New(ctx, cfg)
+		if err != nil {
+			log.Printf("firebase init failed: %v", err)
+		} else {
+			root, exists, err := firebase.Read[map[string]any](ctx, fbClient, "/")
+			if err != nil {
+				log.Printf("firebase read root failed: %v", err)
+			} else if !exists {
+				log.Printf("firebase root: no data")
+			} else {
+				b, _ := json.MarshalIndent(root, "", "  ")
+				log.Printf("firebase full data:\n%s", string(b))
+			}
+
+		}
 	}
 	// log.Printf("config loaded (raw): env=%s port=%s aws.region=%s aws.param=%s aws.access_key=%s aws.secret_access_key=%s aws.s3.bucket=%s aws.s3.access_key=%s aws.s3.secret_key=%s auth.hash=%s auth.jwt_access=%s firebase.project_id=%s firebase.client_email=%s firebase.private_key=%s firebase.database_url=%s blockchain.owner=%s blockchain.relayer=%s blockchain.relayer2=%s blockchain.relayer3=%s",
 	// 	cfg.Env,
@@ -58,4 +82,12 @@ func main() {
 	if err := srv.Run(); err != nil {
 		log.Fatalf("server stopped: %v", err)
 	}
+}
+
+func keys(m map[string]any) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	return out
 }
