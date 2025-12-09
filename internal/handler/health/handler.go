@@ -3,7 +3,7 @@ package health
 import (
 	"net/http"
 
-	"in-server/internal/config"
+	"in-server/pkg/config"
 
 	"github.com/gin-gonic/gin"
 )

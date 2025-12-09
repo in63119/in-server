@@ -26,7 +26,7 @@ make sync-abi
 ## Structure
 
 - `cmd/api/main.go` – app entry
-- `internal/config` – env config loading
+- `pkg/config` – env config loading
 - `internal/server` – Gin engine + middleware + route wiring
 - `internal/handler` – HTTP handlers (controllers)
 - `pkg/logger` – zap logger helper
