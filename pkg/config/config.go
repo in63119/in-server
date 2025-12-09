@@ -18,7 +18,7 @@ type Config struct {
 		SecretAccessKey string `envconfig:"AWS_SSM_SECRET_KEY"`
 		Region          string `envconfig:"AWS_REGION" default:"ap-northeast-2"`
 		Param           string `envconfig:"AWS_SSM_SERVER"`
-		S3        struct {
+		S3              struct {
 			Bucket    string `envconfig:"AWS_S3_BUCKET"`
 			AccessKey string `envconfig:"AWS_S3_ACCESS_KEY_ID"`
 			SecretKey string `envconfig:"AWS_S3_SECRET_ACCESS_KEY"`

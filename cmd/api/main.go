@@ -6,8 +6,8 @@ import (
 
 	"github.com/joho/godotenv"
 
-	"in-server/internal/config"
 	"in-server/internal/server"
+	"in-server/pkg/config"
 	"in-server/pkg/logger"
 )
 

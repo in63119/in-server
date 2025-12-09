@@ -1,7 +1,7 @@
 package server
 
 import (
-	"in-server/internal/config"
+	"in-server/pkg/config"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"

@@ -6,6 +6,8 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"in-server/internal/handler/health"
+	posthandler "in-server/internal/handler/post"
+	postsvc "in-server/internal/service/post"
 )
 
 var routes = struct {
@@ -17,6 +19,11 @@ var routes = struct {
 			Option string
 			Verify string
 		}
+	}
+	Post struct {
+		Root    string
+		publish string
+		delete  string
 	}
 }{
 	Health: "health",
@@ -41,11 +48,17 @@ var routes = struct {
 
 func (s *Server) registerRoutes() {
 	healthHandler := health.New(s.cfg)
+	postHandler := posthandler.New(postsvc.New())
 
 	r := s.engine
 	{
 		r.GET("/"+routes.Health, healthHandler.Health)
 		r.GET("/"+routes.Ready, healthHandler.Ready)
+
+		api := r.Group("/api")
+		{
+			postHandler.Register(api)
+		}
 
 		auth := r.Group("/" + routes.Auth.Root)
 		{

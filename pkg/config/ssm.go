@@ -1,22 +1,19 @@
 package config
 
 import (
-    "context"
-    "errors"
-    "fmt"
-    "strings"
+	"context"
+	"errors"
+	"fmt"
+	"strings"
 
-    "github.com/aws/aws-sdk-go-v2/aws"
-    awscfg "github.com/aws/aws-sdk-go-v2/config"
-    "github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awscfg "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/aws/aws-sdk-go-v2/service/ssm/types"
 	"github.com/goccy/go-json"
 )
 
-// LoadSSM loads a JSON blob from AWS SSM (Parameter Store) stored under cfg.AWS.Param
-// and merges it into cfg. This mirrors the archive-nest behavior of loading one
-// JSON parameter and spreading it onto the config.
 func LoadSSM(ctx context.Context, cfg *Config) error {
 	if cfg.AWS.Param == "" {
 		return nil
@@ -42,7 +39,7 @@ func LoadSSM(ctx context.Context, cfg *Config) error {
 	}
 
 	client := ssm.NewFromConfig(awsCfg)
-	// Support env-specific parameter names like "/in-server/production" or "/in-server/development".
+
 	base := strings.TrimSuffix(cfg.AWS.Param, "/")
 	candidates := []string{base}
 	if cfg.Env != "" {
@@ -78,14 +75,7 @@ func LoadSSM(ctx context.Context, cfg *Config) error {
 }
 
 func applySSMJSON(cfg *Config, raw string) error {
-	// Expected JSON keys mirror archive-nest:
-	// {
-	//   "AUTH": {"HASH": "...", "JWT": {"ACCESS_SECRET": "..."}},
-	//   "AWS": {"S3": {"BUCKET": "...", "ACCESS_KEY_ID": "...", "SECRET_ACCESS_KEY": "..."}},
-	//   "BLOCKCHAIN": {"PRIVATE_KEY": {"OWNER": "...", "RELAYER": "...", ...}},
-	//   "FIREBASE": {"PROJECT_ID": "...", "CLIENT_EMAIL": "...", "PRIVATE_KEY": "...", "DATABASE_URL": "..."}
-	// }
-	var payload map[string]interface{}
+	var payload map[string]any
 	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
 		return fmt.Errorf("parse ssm json: %w", err)
 	}
