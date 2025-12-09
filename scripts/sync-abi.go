@@ -20,7 +20,7 @@ import (
 
 const (
 	abisPrefix    = "abis/"
-	localBasePath = "."
+	localBasePath = "pkg/abis"
 )
 
 func main() {
@@ -46,7 +46,6 @@ func main() {
 		log.Fatalf("aws s3 bucket missing (check SSM or env)")
 	}
 
-	// Prefer S3-specific access keys, fallback to general AWS keys.
 	accessKey := firstNonEmpty(cfg.AWS.S3.AccessKey, cfg.AWS.AccessKey)
 	secretKey := firstNonEmpty(cfg.AWS.S3.SecretKey, cfg.AWS.SecretAccessKey)
 
@@ -91,7 +90,8 @@ func syncAbis(ctx context.Context, client *s3.Client, bucket string) error {
 			continue
 		}
 
-		dest := filepath.Join(localBasePath, key)
+		rel := strings.TrimPrefix(key, abisPrefix)
+		dest := filepath.Join(localBasePath, rel)
 		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 			log.Printf("mkdir %s: %v", filepath.Dir(dest), err)
 			continue

@@ -1,7 +1,7 @@
 {
   "abi": [
     {
-      "inputs": [{"internalType": "address", "name": "_trustedForwarder", "type": "address"}],
+      "inputs": [{"internalType": "address", "name": "trustedForwarder_", "type": "address"}],
       "stateMutability": "nonpayable",
       "type": "constructor"
     },
@@ -119,6 +119,14 @@
       "type": "event"
     },
     {
+      "anonymous": false,
+      "inputs": [
+        {"indexed": true, "internalType": "address", "name": "forwarder", "type": "address"}
+      ],
+      "name": "TrustedForwarderUpdated",
+      "type": "event"
+    },
+    {
       "inputs": [
         {"internalType": "address", "name": "to", "type": "address"},
         {"internalType": "uint256", "name": "tokenId", "type": "uint256"}
@@ -181,6 +189,23 @@
       "name": "isTrustedForwarder",
       "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
       "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "components": [
+            {"internalType": "address", "name": "recipient", "type": "address"},
+            {"internalType": "string", "name": "uri", "type": "string"}
+          ],
+          "internalType": "struct PostStorage.PostInput[]",
+          "name": "items",
+          "type": "tuple[]"
+        }
+      ],
+      "name": "migrate",
+      "outputs": [{"internalType": "uint256[]", "name": "postIds", "type": "uint256[]"}],
+      "stateMutability": "nonpayable",
       "type": "function"
     },
     {
@@ -262,6 +287,13 @@
       "type": "function"
     },
     {
+      "inputs": [{"internalType": "address", "name": "forwarder", "type": "address"}],
+      "name": "setTrustedForwarder",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
       "inputs": [{"internalType": "bytes4", "name": "interfaceId", "type": "bytes4"}],
       "name": "supportsInterface",
       "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
@@ -308,5 +340,5 @@
       "type": "function"
     }
   ],
-  "address": "0x00758839D65647C4C92EBBE9382CbD95028f556B"
+  "address": "0x057EEA45119469cf21cea0E9d82F4f93540aBd82"
 }

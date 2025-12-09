@@ -1,7 +1,10 @@
 {
   "abi": [
     {
-      "inputs": [{"internalType": "string", "name": "_name", "type": "string"}],
+      "inputs": [
+        {"internalType": "string", "name": "_name", "type": "string"},
+        {"internalType": "address", "name": "relayerManager_", "type": "address"}
+      ],
       "stateMutability": "nonpayable",
       "type": "constructor"
     },
@@ -53,6 +56,16 @@
     },
     {"inputs": [], "name": "InvalidShortString", "type": "error"},
     {
+      "inputs": [{"internalType": "address", "name": "owner", "type": "address"}],
+      "name": "OwnableInvalidOwner",
+      "type": "error"
+    },
+    {
+      "inputs": [{"internalType": "address", "name": "account", "type": "address"}],
+      "name": "OwnableUnauthorizedAccount",
+      "type": "error"
+    },
+    {
       "inputs": [{"internalType": "string", "name": "str", "type": "string"}],
       "name": "StringTooLong",
       "type": "error"
@@ -66,6 +79,23 @@
         {"indexed": false, "internalType": "bool", "name": "success", "type": "bool"}
       ],
       "name": "ExecutedForwardRequest",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {"indexed": true, "internalType": "address", "name": "previousOwner", "type": "address"},
+        {"indexed": true, "internalType": "address", "name": "newOwner", "type": "address"}
+      ],
+      "name": "OwnershipTransferred",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {"indexed": true, "internalType": "address", "name": "relayerManager", "type": "address"}
+      ],
+      "name": "RelayerManagerUpdated",
       "type": "event"
     },
     {
@@ -96,7 +126,7 @@
             {"internalType": "bytes", "name": "signature", "type": "bytes"}
           ],
           "internalType": "struct ERC2771Forwarder.ForwardRequestData",
-          "name": "request",
+          "name": "req",
           "type": "tuple"
         }
       ],
@@ -136,6 +166,41 @@
       "type": "function"
     },
     {
+      "inputs": [],
+      "name": "owner",
+      "outputs": [{"internalType": "address", "name": "", "type": "address"}],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "relayerManager",
+      "outputs": [{"internalType": "contract RelayerManager", "name": "", "type": "address"}],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "renounceOwnership",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [{"internalType": "address", "name": "relayerManager_", "type": "address"}],
+      "name": "setRelayerManager",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [{"internalType": "address", "name": "newOwner", "type": "address"}],
+      "name": "transferOwnership",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
       "inputs": [
         {
           "components": [
@@ -158,5 +223,5 @@
       "type": "function"
     }
   ],
-  "address": "0x4E06d5040ba584DecB9766FF138c298a5123fCba"
+  "address": "0xf21821293Dbb4693DCE568C391582211f15586BB"
 }

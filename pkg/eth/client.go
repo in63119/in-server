@@ -7,11 +7,13 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	gethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 
+	"in-server/pkg/abis"
 	"in-server/pkg/config"
 	appcrypto "in-server/pkg/crypto"
 	"in-server/pkg/firebase"
@@ -166,4 +168,33 @@ func addressFromPrivateKey(hexKey string) common.Address {
 		return common.Address{}
 	}
 	return gethcrypto.PubkeyToAddress(key.PublicKey)
+}
+
+func (c *Client) Contract(name types.ContractName, cfg config.Config) (*bind.BoundContract, common.Address, error) {
+	if c == nil || c.rpc == nil {
+		return nil, common.Address{}, fmt.Errorf("client is nil")
+	}
+
+	artifacts, err := abis.Get(cfg.Env)
+	if err != nil {
+		return nil, common.Address{}, fmt.Errorf("load abis: %w", err)
+	}
+
+	artifact, ok := artifacts[name]
+	if !ok {
+		return nil, common.Address{}, fmt.Errorf("contract %s not found", name)
+	}
+
+	addr := common.HexToAddress(artifact.Address)
+	if addr == (common.Address{}) {
+		return nil, common.Address{}, fmt.Errorf("contract %s address empty", name)
+	}
+
+	parsedABI, err := abi.JSON(strings.NewReader(string(artifact.ABI)))
+	if err != nil {
+		return nil, common.Address{}, fmt.Errorf("parse abi for %s: %w", name, err)
+	}
+
+	bound := bind.NewBoundContract(addr, parsedABI, c.rpc, c.rpc, c.rpc)
+	return bound, addr, nil
 }
