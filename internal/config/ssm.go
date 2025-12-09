@@ -14,7 +14,6 @@ import (
 	"github.com/goccy/go-json"
 )
 
-
 func LoadSSM(ctx context.Context, cfg *Config) error {
 	if cfg.AWS.Param == "" {
 		return nil
