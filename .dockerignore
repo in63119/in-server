@@ -1,0 +1,12 @@
+.git
+.gitignore
+.vscode
+.DS_Store
+.env
+node_modules
+vendor
+tmp
+dist
+build
+bin
+*.log

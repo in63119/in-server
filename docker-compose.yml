@@ -1,0 +1,17 @@
+version: "3.8"
+
+services:
+  api:
+    build: .
+    ports:
+      - "4000:4000"
+    environment:
+      ENV: ${ENV:-development}
+      PORT: ${PORT:-:4000}
+      AWS_REGION: ${AWS_REGION:-ap-northeast-2}
+      AWS_SSM_SERVER: ${AWS_SSM_SERVER}
+      AWS_SSM_ACCESS_KEY: ${AWS_SSM_ACCESS_KEY}
+      AWS_SSM_SECRET_KEY: ${AWS_SSM_SECRET_KEY}
+    env_file:
+      - .env
+    restart: unless-stopped
