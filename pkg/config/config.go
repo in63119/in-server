@@ -11,6 +11,7 @@ type Config struct {
 		JWT  struct {
 			AccessSecret string `envconfig:"AUTH_JWT_ACCESS_SECRET"`
 		}
+		AdminCode string `envconfig:"AUTH_ADMIN_CODE"`
 	}
 
 	AWS struct {

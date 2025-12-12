@@ -1,9 +1,11 @@
 package server
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 
 	"in-server/internal/handler/health"
 	posthandler "in-server/internal/handler/posts"
@@ -48,7 +50,11 @@ var routes = struct {
 
 func (s *Server) registerRoutes() {
 	healthHandler := health.New(s.cfg)
-	postHandler := posthandler.New(postsvc.New())
+	postSvc, err := postsvc.New(context.Background(), s.cfg)
+	if err != nil {
+		s.log.Fatal("init post service", zap.Error(err))
+	}
+	postHandler := posthandler.New(postSvc)
 
 	r := s.engine
 	{

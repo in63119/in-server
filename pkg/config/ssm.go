@@ -101,6 +101,7 @@ func applySSMJSON(cfg *Config, raw string) error {
 
 	cfg.Auth.Hash = firstNonEmpty(apply("AUTH.HASH"), cfg.Auth.Hash)
 	cfg.Auth.JWT.AccessSecret = firstNonEmpty(apply("AUTH.JWT.ACCESS_SECRET"), cfg.Auth.JWT.AccessSecret)
+	cfg.Auth.AdminCode = firstNonEmpty(apply("AUTH.ADMIN_CODE"), cfg.Auth.AdminCode)
 
 	cfg.AWS.S3.Bucket = firstNonEmpty(apply("AWS.S3.BUCKET"), cfg.AWS.S3.Bucket)
 	cfg.AWS.S3.AccessKey = firstNonEmpty(apply("AWS.S3.ACCESS_KEY_ID"), cfg.AWS.S3.AccessKey)
