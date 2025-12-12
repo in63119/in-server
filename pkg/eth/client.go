@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 
 	"in-server/pkg/abis"
+	"in-server/pkg/apperr"
 	"in-server/pkg/config"
 	appcrypto "in-server/pkg/crypto"
 	"in-server/pkg/firebase"
@@ -23,9 +24,15 @@ import (
 type Client struct {
 	rpc     *ethclient.Client
 	chainID *big.Int
+	cfg     config.Config
 }
 
-func Dial(ctx context.Context, rpcURL string) (*Client, error) {
+func Dial(ctx context.Context, cfg config.Config) (*Client, error) {
+	rpcURL := strings.TrimSpace("https://public-en-kairos.node.kaia.io")
+	if rpcURL == "" {
+		return nil, apperr.Blockchain.ErrRPCURLMissing
+	}
+
 	rpc, err := ethclient.DialContext(ctx, rpcURL)
 	if err != nil {
 		return nil, fmt.Errorf("dial eth rpc: %w", err)
@@ -36,7 +43,7 @@ func Dial(ctx context.Context, rpcURL string) (*Client, error) {
 		return nil, fmt.Errorf("get chain id: %w", err)
 	}
 
-	return &Client{rpc: rpc, chainID: chainID}, nil
+	return &Client{rpc: rpc, chainID: chainID, cfg: cfg}, nil
 }
 
 func (c *Client) Close() {
@@ -80,10 +87,14 @@ type Accounts struct {
 	Relayer3 string
 }
 
-func AccountsFromConfig(cfg config.Config) (Accounts, error) {
+func (c *Client) Accounts() (Accounts, error) {
+	return accountsFromConfig(c.cfg)
+}
+
+func accountsFromConfig(cfg config.Config) (Accounts, error) {
 	salt := strings.TrimSpace(cfg.Auth.Hash)
 	if salt == "" {
-		return Accounts{}, fmt.Errorf("auth hash is empty")
+		return Accounts{}, apperr.System.ErrMissingAuthHash
 	}
 
 	decrypt := func(label, value string) (string, error) {
@@ -122,11 +133,11 @@ func AccountsFromConfig(cfg config.Config) (Accounts, error) {
 	}, nil
 }
 
-func (c *Client) ReadyRelayer(ctx context.Context, fb *firebase.Client, cfg config.Config) (*bind.TransactOpts, error) {
+func (c *Client) ReadyRelayer(ctx context.Context, fb *firebase.Client) (*bind.TransactOpts, error) {
 	if c == nil {
 		return nil, fmt.Errorf("client is nil")
 	}
-	accts, err := AccountsFromConfig(cfg)
+	accts, err := c.Accounts()
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +170,7 @@ func (c *Client) ReadyRelayer(ctx context.Context, fb *firebase.Client, cfg conf
 		}
 	}
 
-	return nil, fmt.Errorf("no available relayer marked Ready")
+	return nil, apperr.Blockchain.ErrNoAvailableRelayer
 }
 
 func addressFromPrivateKey(hexKey string) common.Address {
@@ -170,24 +181,24 @@ func addressFromPrivateKey(hexKey string) common.Address {
 	return gethcrypto.PubkeyToAddress(key.PublicKey)
 }
 
-func (c *Client) Contract(name types.ContractName, cfg config.Config) (*bind.BoundContract, common.Address, error) {
+func (c *Client) Contract(name types.ContractName) (*bind.BoundContract, common.Address, error) {
 	if c == nil || c.rpc == nil {
 		return nil, common.Address{}, fmt.Errorf("client is nil")
 	}
 
-	artifacts, err := abis.Get(cfg.Env)
+	artifacts, err := abis.Get(c.cfg.Env)
 	if err != nil {
 		return nil, common.Address{}, fmt.Errorf("load abis: %w", err)
 	}
 
 	artifact, ok := artifacts[name]
 	if !ok {
-		return nil, common.Address{}, fmt.Errorf("contract %s not found", name)
+		return nil, common.Address{}, fmt.Errorf("%w: %s", apperr.Blockchain.ErrContractNotFound, name)
 	}
 
 	addr := common.HexToAddress(artifact.Address)
 	if addr == (common.Address{}) {
-		return nil, common.Address{}, fmt.Errorf("contract %s address empty", name)
+		return nil, common.Address{}, fmt.Errorf("%w: %s address empty", apperr.Blockchain.ErrContractNotFound, name)
 	}
 
 	parsedABI, err := abi.JSON(strings.NewReader(string(artifact.ABI)))
@@ -197,4 +208,20 @@ func (c *Client) Contract(name types.ContractName, cfg config.Config) (*bind.Bou
 
 	bound := bind.NewBoundContract(addr, parsedABI, c.rpc, c.rpc, c.rpc)
 	return bound, addr, nil
+}
+
+func (c *Client) Wallet(email string) (*ecdsa.PrivateKey, common.Address, error) {
+	salt := strings.TrimSpace(c.cfg.Auth.Hash)
+	if salt == "" {
+		return nil, common.Address{}, apperr.System.ErrMissingAuthHash
+	}
+
+	input := []byte(email + salt)
+	digest := gethcrypto.Keccak256(input)
+
+	pk, err := gethcrypto.ToECDSA(digest)
+	if err != nil {
+		return nil, common.Address{}, fmt.Errorf("to ecdsa: %w", err)
+	}
+	return pk, gethcrypto.PubkeyToAddress(pk.PublicKey), nil
 }
