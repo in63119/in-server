@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
+	"net/url"
 	"sort"
 	"strings"
 	"time"
@@ -43,18 +44,40 @@ func New(ctx context.Context, cfg config.Config) (*Service, error) {
 }
 
 type Post struct {
-	ID          string `json:"id,omitempty"`
-	TokenID     string `json:"tokenId,omitempty"`
-	Title       string `json:"title,omitempty"`
-	Body        string `json:"body,omitempty"`
-	PublishedAt string `json:"publishedAt,omitempty"`
-	MetadataURL string `json:"metadataUrl,omitempty"`
+	ID                 string   `json:"id,omitempty"`
+	TokenID            string   `json:"tokenId,omitempty"`
+	Slug               string   `json:"slug,omitempty"`
+	Title              string   `json:"title,omitempty"`
+	Summary            string   `json:"summary,omitempty"`
+	Description        string   `json:"description,omitempty"`
+	Category           string   `json:"category,omitempty"`
+	LabName            string   `json:"labName,omitempty"`
+	LabSegment         string   `json:"labSegment,omitempty"`
+	Href               string   `json:"href,omitempty"`
+	PublishedAt        string   `json:"publishedAt,omitempty"`
+	ReadingTimeMinutes int      `json:"readingTimeMinutes,omitempty"`
+	ReadingTimeLabel   string   `json:"readingTimeLabel,omitempty"`
+	Tags               []string `json:"tags,omitempty"`
+	MetadataURL        string   `json:"metadataUrl,omitempty"`
+	Image              string   `json:"image,omitempty"`
+	ExternalURL        string   `json:"externalUrl,omitempty"`
+	Content            string   `json:"content,omitempty"`
+	RelatedLinks       []string `json:"relatedLinks,omitempty"`
+	StructuredData     string   `json:"structuredData,omitempty"`
 }
 
 type metadata struct {
-	Title       string `json:"title"`
-	Body        string `json:"body"`
-	PublishedAt string `json:"publishedAt"`
+	Name        string      `json:"name"`
+	Description string      `json:"description"`
+	Image       string      `json:"image"`
+	ExternalURL string      `json:"external_url"`
+	Attributes  []attribute `json:"attributes"`
+}
+
+type attribute struct {
+	TraitType   string          `json:"trait_type"`
+	Value       json.RawMessage `json:"value"`
+	DisplayType string          `json:"display_type,omitempty"`
 }
 
 func (s *Service) List() ([]Post, error) {
@@ -115,14 +138,7 @@ func (s *Service) List() ([]Post, error) {
 				return fmt.Errorf("fetch metadata for %s: %w", p.Uri, err)
 			}
 			tokenID := p.Id.String()
-			posts[i] = Post{
-				ID:          tokenID,
-				TokenID:     tokenID,
-				Title:       meta.Title,
-				Body:        meta.Body,
-				PublishedAt: meta.PublishedAt,
-				MetadataURL: p.Uri,
-			}
+			posts[i] = mapMetadataToPost(meta, tokenID, p.Uri)
 			return nil
 		})
 	}
@@ -163,6 +179,129 @@ func (s *Service) fetchMetadata(ctx context.Context, url string) (metadata, erro
 		return metadata{}, fmt.Errorf("decode metadata: %w", err)
 	}
 	return meta, nil
+}
+
+func mapMetadataToPost(meta metadata, tokenID, metadataURL string) Post {
+	var slug, summary, category, labName, labSegment, href, publishedAt, readingLabel, content, structuredData string
+	var readingMinutes int
+	var tags []string
+	var related []string
+
+	title := strings.TrimSpace(meta.Name)
+	description := strings.TrimSpace(meta.Description)
+	image := strings.TrimSpace(meta.Image)
+	externalURL := strings.TrimSpace(meta.ExternalURL)
+
+	for _, attr := range meta.Attributes {
+		key := strings.TrimSpace(attr.TraitType)
+		val := strings.TrimSpace(attrString(attr.Value))
+
+		switch key {
+		case "Slug":
+			slug = val
+		case "Summary":
+			summary = val
+		case "Content":
+			content = val
+		case "PublishedAt":
+			publishedAt = val
+		case "ReadingTimeMinutes":
+			if n := attrInt(attr.Value); n > 0 {
+				readingMinutes = n
+				readingLabel = fmt.Sprintf("%d min read", n)
+			}
+		case "Tags":
+			if val != "" {
+				tags = strings.Fields(val)
+			}
+		case "Lab":
+			labName = val
+		case "StructuredData":
+			structuredData = val
+		}
+	}
+
+	if labSegment == "" {
+		if seg := firstPathSegment(externalURL); seg != "" {
+			labSegment = seg
+		}
+	}
+	if category == "" && strings.Contains(labSegment, "-") {
+		category = strings.SplitN(labSegment, "-", 2)[0]
+	}
+	if href == "" && externalURL != "" {
+		href = pathFromURL(externalURL)
+	}
+
+	return Post{
+		ID:                 tokenID,
+		TokenID:            tokenID,
+		Slug:               slug,
+		Title:              title,
+		Summary:            summary,
+		Description:        description,
+		Category:           category,
+		LabName:            labName,
+		LabSegment:         labSegment,
+		Href:               href,
+		PublishedAt:        publishedAt,
+		ReadingTimeMinutes: readingMinutes,
+		ReadingTimeLabel:   readingLabel,
+		Tags:               tags,
+		MetadataURL:        metadataURL,
+		Image:              image,
+		ExternalURL:        externalURL,
+		Content:            content,
+		RelatedLinks:       related,
+		StructuredData:     structuredData,
+	}
+}
+
+func attrString(raw json.RawMessage) string {
+	var s string
+	if err := json.Unmarshal(raw, &s); err == nil {
+		return s
+	}
+	var f float64
+	if err := json.Unmarshal(raw, &f); err == nil {
+		return strings.TrimRight(strings.TrimRight(fmt.Sprintf("%.6f", f), "0"), ".")
+	}
+	return string(raw)
+}
+
+func attrInt(raw json.RawMessage) int {
+	var n int
+	if err := json.Unmarshal(raw, &n); err == nil {
+		return n
+	}
+	var f float64
+	if err := json.Unmarshal(raw, &f); err == nil {
+		return int(f)
+	}
+	return 0
+}
+
+func firstPathSegment(rawURL string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return ""
+	}
+	parts := strings.Split(strings.Trim(u.Path, "/"), "/")
+	if len(parts) > 0 {
+		return parts[0]
+	}
+	return ""
+}
+
+func pathFromURL(rawURL string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+	if u.Path == "" {
+		return rawURL
+	}
+	return u.Path
 }
 
 func parsePublishedAt(val string) time.Time {
