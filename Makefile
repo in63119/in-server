@@ -1,14 +1,12 @@
 BINARY ?= bin/api
 
-.PHONY: build run prod fmt tidy test sync-abi
+.PHONY: build run prod fmt tidy test sync-abi stop
 
 build: fmt
 	GO111MODULE=on go build -o $(BINARY) ./cmd/api
 
 run:
-	@PATH="$(shell go env GOPATH)/bin:$$PATH" command -v air >/dev/null 2>&1 || \
-		{ echo "air not found; install with: go install github.com/air-verse/air@latest"; exit 1; }
-	PATH="$(shell go env GOPATH)/bin:$$PATH" air -c .air.toml
+	PATH="$(shell go env GOPATH)/bin:$$PATH" gow run ./cmd/api
 
 prod:
 	docker compose up --build api
