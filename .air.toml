@@ -1,13 +1,11 @@
 # Air config for hot-reload during development.
 
 root = "."
-# use a single-level temp dir so air can create it without parent dir errors
 tmp_dir = "tmp"
 
 [build]
+  entry = "cmd/api"
   cmd = "go run ./cmd/api"
-  bin = "tmp/app"    # not used because cmd runs directly, but keeps cache separate
-  full_bin = ""
   include_ext = ["go"]
   exclude_dir = ["tmp", "vendor", "node_modules", ".git"]
   exclude_file = []
