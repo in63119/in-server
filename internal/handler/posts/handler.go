@@ -24,7 +24,7 @@ func (h *Handler) list(c *gin.Context) {
 		writeError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, items)
+	c.JSON(http.StatusOK, gin.H{"data": items})
 }
 
 func (h *Handler) create(c *gin.Context) {
