@@ -46,11 +46,13 @@ var System = struct {
 	ErrLoadMetadata         *Error
 	ErrMissingAuthHash      *Error
 	ErrMissingAuthAdminCode *Error
+	ErrNotImplemented       *Error
 }{
 	ErrInvalidMetadataURL:   New("INVALID_METADATA_URL", "invalid post metadata url", http.StatusBadRequest),
 	ErrLoadMetadata:         New("FAILED_LOAD_METADATA", "failed to load metadata", http.StatusInternalServerError),
 	ErrMissingAuthHash:      New("ADMIN_AUTH_CODE_HASH_NOT_FOUND", "auth hash (salt) is empty", http.StatusInternalServerError),
 	ErrMissingAuthAdminCode: New("ADMIN_AUTH_CODE_NOT_FOUND", "auth admin code is empty", http.StatusInternalServerError),
+	ErrNotImplemented:       New("NOT_IMPLEMENTED", "not implemented", http.StatusNotImplemented),
 }
 
 var Blockchain = struct {
@@ -61,4 +63,16 @@ var Blockchain = struct {
 	ErrRPCURLMissing:      New("BLOCKCHAIN_RPC_URL_MISSING", "blockchain rpc url is empty", http.StatusInternalServerError),
 	ErrContractNotFound:   New("CONTRACT_NOT_FOUND", "contract not found", http.StatusNotFound),
 	ErrNoAvailableRelayer: New("NO_AVAILABLE_RELAYER", "no available relayer", http.StatusInternalServerError),
+}
+
+var Visitors = struct {
+	ErrInvalidBody *Error
+	ErrCheckVisit  *Error
+	ErrAddVisit    *Error
+	ErrVisitCount  *Error
+}{
+	ErrInvalidBody: New("INVALID_BODY", "url is required", http.StatusForbidden),
+	ErrCheckVisit:  New("FAILED_TO_CHECK_VISIT", "failed to check visit", http.StatusInternalServerError),
+	ErrAddVisit:    New("FAILED_TO_ADD_VISIT", "failed to add visit", http.StatusInternalServerError),
+	ErrVisitCount:  New("FAILED_TO_GET_VISIT_COUNT", "failed to get visit count", http.StatusInternalServerError),
 }

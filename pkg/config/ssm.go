@@ -82,9 +82,9 @@ func applySSMJSON(cfg *Config, raw string) error {
 
 	apply := func(path string) string {
 		parts := strings.Split(path, ".")
-		var cur interface{} = payload
+		var cur any = payload
 		for _, p := range parts {
-			m, ok := cur.(map[string]interface{})
+			m, ok := cur.(map[string]any)
 			if !ok {
 				return ""
 			}

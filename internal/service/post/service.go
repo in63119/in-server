@@ -109,7 +109,7 @@ func (s *Service) List() ([]Post, error) {
 
 	callOpts := &bind.CallOpts{Context: ctx}
 
-	callResults := make([]interface{}, 1)
+	callResults := make([]any, 1)
 	callResults[0] = new([]struct {
 		Id  *big.Int
 		Uri string

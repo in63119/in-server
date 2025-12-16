@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	gethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 
@@ -133,44 +134,55 @@ func accountsFromConfig(cfg config.Config) (Accounts, error) {
 	}, nil
 }
 
-func (c *Client) ReadyRelayer(ctx context.Context, fb *firebase.Client) (*bind.TransactOpts, error) {
+func (c *Client) ReadyRelayer(ctx context.Context, fb *firebase.Client) (*bind.TransactOpts, common.Address, string, error) {
 	if c == nil {
-		return nil, fmt.Errorf("client is nil")
+		return nil, common.Address{}, "", fmt.Errorf("client is nil")
 	}
 	accts, err := c.Accounts()
 	if err != nil {
-		return nil, err
+		return nil, common.Address{}, "", err
 	}
 
 	relayerMap, exists, err := firebase.Read[map[string]types.FirebaseRelayer](ctx, fb, "relayers")
 	if err != nil {
-		return nil, fmt.Errorf("read firebase relayers: %w", err)
+		return nil, common.Address{}, "", fmt.Errorf("read firebase relayers: %w", err)
 	}
 	if !exists {
-		return nil, fmt.Errorf("no relayer data found in firebase")
+		return nil, common.Address{}, "", fmt.Errorf("no relayer data found in firebase")
 	}
 
-	candidates := []string{accts.Relayer, accts.Relayer2, accts.Relayer3}
+	candidates := []struct {
+		pk   string
+		addr common.Address
+	}{
+		{accts.Relayer, addressFromPrivateKey(accts.Relayer)},
+		{accts.Relayer2, addressFromPrivateKey(accts.Relayer2)},
+		{accts.Relayer3, addressFromPrivateKey(accts.Relayer3)},
+	}
 
-	for _, pk := range candidates {
-		if pk == "" {
+	for _, cand := range candidates {
+		if cand.pk == "" || (cand.addr == common.Address{}) {
 			continue
 		}
-		addr := strings.ToLower(addressFromPrivateKey(pk).Hex())
+		addrLower := strings.ToLower(cand.addr.Hex())
+		for key, entry := range relayerMap {
+			if strings.ToLower(strings.TrimSpace(entry.Address)) == addrLower && entry.Status == types.RelayerStatusReady {
+				entry.Status = types.RelayerStatusProcessing
+				relayerMap[key] = entry
+				if err := firebase.Write(ctx, fb, "relayers", relayerMap); err != nil {
+					return nil, common.Address{}, "", fmt.Errorf("update relayer status: %w", err)
+				}
 
-		ready := false
-		for _, entry := range relayerMap {
-			if strings.ToLower(strings.TrimSpace(entry.Address)) == addr && entry.Status == types.RelayerStatusReady {
-				ready = true
-				break
+				opts, err := c.NewTransactorFromKey(cand.pk)
+				if err != nil {
+					return nil, common.Address{}, "", err
+				}
+				return opts, cand.addr, key, nil
 			}
-		}
-		if ready {
-			return c.NewTransactorFromKey(pk)
 		}
 	}
 
-	return nil, apperr.Blockchain.ErrNoAvailableRelayer
+	return nil, common.Address{}, "", apperr.Blockchain.ErrNoAvailableRelayer
 }
 
 func addressFromPrivateKey(hexKey string) common.Address {
@@ -224,4 +236,62 @@ func (c *Client) Wallet(email string) (*ecdsa.PrivateKey, common.Address, error)
 		return nil, common.Address{}, fmt.Errorf("to ecdsa: %w", err)
 	}
 	return pk, gethcrypto.PubkeyToAddress(pk.PublicKey), nil
+}
+
+func (c *Client) RPC() *ethclient.Client {
+	if c == nil {
+		return nil
+	}
+	return c.rpc
+}
+
+func (c *Client) SendTxByRelayer(ctx context.Context, fb *firebase.Client, contract *bind.BoundContract, method string, args ...any) (*gethtypes.Receipt, error) {
+	if contract == nil {
+		return nil, fmt.Errorf("contract is nil")
+	}
+
+	opts, addr, relayerKey, err := c.ReadyRelayer(ctx, fb)
+	if err != nil {
+		return nil, err
+	}
+
+	markReady := func() {
+		if relayerKey == "" || fb == nil {
+			return
+		}
+		relayerMap, exists, err := firebase.Read[map[string]types.FirebaseRelayer](ctx, fb, "relayers")
+		if err != nil || !exists {
+			return
+		}
+		entry, ok := relayerMap[relayerKey]
+		if !ok {
+			return
+		}
+		entry.Status = types.RelayerStatusReady
+		relayerMap[relayerKey] = entry
+		_ = firebase.Write(ctx, fb, "relayers", relayerMap)
+	}
+	defer markReady()
+
+	tx, err := contract.Transact(opts, method, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	receipt, err := bind.WaitMined(ctx, c.RPC(), tx)
+	if err != nil {
+		return nil, err
+	}
+	if receipt == nil || receipt.Status != gethtypes.ReceiptStatusSuccessful {
+		return nil, fmt.Errorf("tx %s status %v via relayer %s", tx.Hash().Hex(), receiptStatus(receipt), addr.Hex())
+	}
+
+	return receipt, nil
+}
+
+func receiptStatus(r *gethtypes.Receipt) any {
+	if r == nil {
+		return nil
+	}
+	return r.Status
 }
