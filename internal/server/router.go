@@ -74,7 +74,10 @@ func (s *Server) registerRoutes() {
 	if err != nil {
 		s.log.Fatal("init post service", zap.Error(err))
 	}
-	visitorSvc := visitorsvc.New()
+	visitorSvc, err := visitorsvc.New(context.Background(), s.cfg)
+	if err != nil {
+		s.log.Fatal("init visitor service", zap.Error(err))
+	}
 	postHandler := posthandler.New(postSvc)
 	visitorsHandler := visitorshandler.New(visitorSvc)
 

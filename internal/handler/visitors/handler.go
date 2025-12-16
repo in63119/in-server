@@ -6,7 +6,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"in-server/internal/handler/httputil"
 	"in-server/internal/service/visitor"
+	"in-server/pkg/apperr"
 )
 
 type Handler struct {
@@ -16,21 +18,41 @@ type Handler struct {
 func New(svc *visitor.Service) *Handler { return &Handler{svc: svc} }
 
 func (h *Handler) Register(r *gin.RouterGroup) {
-	r.GET("/visitors", h.list)
-	r.POST("/visitors", h.create)
+	r.GET("/visitors", h.count)
+	r.POST("/visitors", h.visit)
 	r.GET("/visitors/check", h.check)
 }
 
-func (h *Handler) list(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{
-		"message": "list visitors not implemented",
-	})
+func (h *Handler) count(c *gin.Context) {
+	total, err := h.svc.Count()
+	if err != nil {
+		httputil.WriteError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"count": total})
 }
 
-func (h *Handler) create(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{
-		"message": "create visitor not implemented",
-	})
+func (h *Handler) visit(c *gin.Context) {
+	var req struct {
+		URL string `json:"url"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || strings.TrimSpace(req.URL) == "" {
+		httputil.WriteError(c, apperr.Visitors.ErrInvalidBody)
+		return
+	}
+
+	ip := clientIP(c)
+	if ip == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"code": "INVALID_IP", "message": "invalid ip"})
+		return
+	}
+
+	if err := h.svc.Visit(ip, req.URL); err != nil {
+		httputil.WriteError(c, err)
+		return
+	}
+
+	c.Status(http.StatusCreated)
 }
 
 func (h *Handler) check(c *gin.Context) {
@@ -42,7 +64,7 @@ func (h *Handler) check(c *gin.Context) {
 
 	visited, err := h.svc.HasVisited(ip)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": "FAILED_TO_CHECK_VISIT", "message": "failed to check visit"})
+		httputil.WriteError(c, err)
 		return
 	}
 

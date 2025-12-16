@@ -24,9 +24,9 @@ func New(cfg config.Config, log *zap.Logger) *Server {
 	engine.Use(gin.Logger())
 	engine.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:3000", "http://127.0.0.1:3000"},
-		AllowOriginFunc:  func(origin string) bool { return true }, // dev-friendly: allow any origin
+		AllowOriginFunc:  func(origin string) bool { return true },
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"*"},
+		AllowHeaders:     []string{"Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
