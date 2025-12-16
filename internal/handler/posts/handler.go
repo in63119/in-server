@@ -1,12 +1,12 @@
 package post
 
 import (
-	"errors"
-	"in-server/internal/service/post"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"in-server/pkg/apperr"
+
+	"in-server/internal/handler/httputil"
+	"in-server/internal/service/post"
 )
 
 type Handler struct{ svc *post.Service }
@@ -21,7 +21,7 @@ func (h *Handler) Register(r *gin.RouterGroup) {
 func (h *Handler) list(c *gin.Context) {
 	items, err := h.svc.List()
 	if err != nil {
-		writeError(c, err)
+		httputil.WriteError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": items})
@@ -34,17 +34,8 @@ func (h *Handler) create(c *gin.Context) {
 		return
 	}
 	if err := h.svc.Create(req); err != nil {
-		writeError(c, err)
+		httputil.WriteError(c, err)
 		return
 	}
 	c.Status(http.StatusCreated)
-}
-
-func writeError(c *gin.Context, err error) {
-	var appErr *apperr.Error
-	if errors.As(err, &appErr) {
-		c.JSON(appErr.Status, gin.H{"code": appErr.Code, "message": appErr.Message})
-		return
-	}
-	c.JSON(http.StatusInternalServerError, gin.H{"code": "INTERNAL_SERVER_ERROR", "message": "internal server error"})
 }
