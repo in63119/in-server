@@ -111,9 +111,9 @@ func accountsFromConfig(cfg config.Config) (Accounts, error) {
 		return Accounts{}, err
 	}
 
-	relayer := strings.TrimSpace(cfg.Blockchain.PrivateKey.Relayer)
-	if relayer == "" {
-		return Accounts{}, fmt.Errorf("relayer private key is empty")
+	relayer, err := decrypt("relayer", cfg.Blockchain.PrivateKey.Relayer)
+	if err != nil {
+		return Accounts{}, err
 	}
 
 	relayer2, err := decrypt("relayer2", cfg.Blockchain.PrivateKey.Relayer2)
@@ -191,6 +191,15 @@ func addressFromPrivateKey(hexKey string) common.Address {
 		return common.Address{}
 	}
 	return gethcrypto.PubkeyToAddress(key.PublicKey)
+}
+
+// AddressFromPrivateKey parses a hex private key and returns its address.
+func AddressFromPrivateKey(hexKey string) (common.Address, error) {
+	key, err := parsePrivateKey(hexKey)
+	if err != nil {
+		return common.Address{}, err
+	}
+	return gethcrypto.PubkeyToAddress(key.PublicKey), nil
 }
 
 func (c *Client) Contract(name types.ContractName) (*bind.BoundContract, common.Address, error) {

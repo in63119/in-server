@@ -7,8 +7,11 @@ import (
 
 	"in-server/internal/handler/health"
 	posthandler "in-server/internal/handler/posts"
+	subscriberhandler "in-server/internal/handler/subscriber"
 	visitorshandler "in-server/internal/handler/visitors"
+
 	postsvc "in-server/internal/service/post"
+	subscribersvc "in-server/internal/service/subscriber"
 	visitorsvc "in-server/internal/service/visitor"
 )
 
@@ -31,6 +34,9 @@ var routes = struct {
 		Root  string
 		check string
 	}
+	Subscriber struct {
+		Root string
+	}
 }{
 	Health: "health",
 	Ready:  "ready",
@@ -49,6 +55,11 @@ var routes = struct {
 	}{
 		Root:  "visitors",
 		check: "check",
+	},
+	Subscriber: struct {
+		Root string
+	}{
+		Root: "subscriber",
 	},
 	// Auth: struct {
 	// 	Root           string
@@ -78,8 +89,13 @@ func (s *Server) registerRoutes() {
 	if err != nil {
 		s.log.Fatal("init visitor service", zap.Error(err))
 	}
+	subscriberSvc, err := subscribersvc.New(context.Background(), s.cfg)
+	if err != nil {
+		s.log.Fatal("init subscriber service", zap.Error(err))
+	}
 	postHandler := posthandler.New(postSvc)
 	visitorsHandler := visitorshandler.New(visitorSvc)
+	subscriberHandler := subscriberhandler.New(subscriberSvc)
 
 	r := s.engine
 	{
@@ -88,6 +104,7 @@ func (s *Server) registerRoutes() {
 
 		postHandler.Register(r.Group("/"))
 		visitorsHandler.Register(r.Group("/"))
+		subscriberHandler.Register(r.Group("/"))
 
 		// auth := r.Group("/" + routes.Auth.Root)
 		// {
