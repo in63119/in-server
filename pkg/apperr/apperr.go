@@ -76,3 +76,9 @@ var Visitors = struct {
 	ErrAddVisit:    New("FAILED_TO_ADD_VISIT", "failed to add visit", http.StatusInternalServerError),
 	ErrVisitCount:  New("FAILED_TO_GET_VISIT_COUNT", "failed to get visit count", http.StatusInternalServerError),
 }
+
+var Subscriber = struct {
+	ErrGetSubscribers *Error
+}{
+	ErrGetSubscribers: New("FAILED_TO_GET_SUBSCRIBERS", "failed to get subscribers", http.StatusInternalServerError),
+}
