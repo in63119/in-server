@@ -6,13 +6,18 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"time"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/common/math"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	gethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/signer/core/apitypes"
 
 	"in-server/pkg/abis"
 	"in-server/pkg/apperr"
@@ -303,4 +308,404 @@ func receiptStatus(r *gethtypes.Receipt) any {
 		return nil
 	}
 	return r.Status
+}
+
+type ForwardRequestData struct {
+	From      common.Address `abi:"from"`
+	To        common.Address `abi:"to"`
+	Value     *big.Int       `abi:"value"`
+	Gas       *big.Int       `abi:"gas"`
+	Deadline  *big.Int       `abi:"deadline"`
+	Data      []byte         `abi:"data"`
+	Signature []byte         `abi:"signature"`
+}
+
+// Excute sends a meta-tx using the InForwarder via a READY relayer (and marks relayer status in Firebase).
+// It matches the JS helper name used in the Next.js codebase (typo kept intentionally).
+func (c *Client) Excute(ctx context.Context, fb *firebase.Client, recipient types.ContractName, signer *ecdsa.PrivateKey, method string, args ...any) (*gethtypes.Receipt, error) {
+	return c.ExecuteMetaTx(ctx, fb, recipient, signer, method, args...)
+}
+
+func (c *Client) ExecuteMetaTx(ctx context.Context, fb *firebase.Client, recipient types.ContractName, signer *ecdsa.PrivateKey, method string, args ...any) (*gethtypes.Receipt, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if c == nil || c.rpc == nil {
+		return nil, fmt.Errorf("client is nil")
+	}
+	if signer == nil {
+		return nil, fmt.Errorf("signer is nil")
+	}
+
+	forwarder, forwarderAddr, forwarderABI, err := c.contractWithABI(types.INFORWARDER)
+	if err != nil {
+		return nil, err
+	}
+
+	recipientAddr, recipientABI, err := c.contractABI(recipient)
+	if err != nil {
+		return nil, err
+	}
+
+	calldata, err := recipientABI.Pack(method, args...)
+	if err != nil {
+		return nil, fmt.Errorf("pack %s.%s: %w", recipient, method, err)
+	}
+
+	fromAddr := gethcrypto.PubkeyToAddress(signer.PublicKey)
+	nonce, err := c.forwarderNonce(ctx, forwarderAddr, forwarderABI, fromAddr)
+	if err != nil {
+		return nil, err
+	}
+	domain, err := c.forwarderDomain(ctx, forwarderAddr, forwarderABI)
+	if err != nil {
+		return nil, err
+	}
+
+	value := big.NewInt(0)
+	deadlineUint := uint64(time.Now().Unix() + 300)
+	deadlineBig := new(big.Int).SetUint64(deadlineUint)
+
+	gasLimit, err := c.estimateGas(ctx, fromAddr, recipientAddr, calldata)
+	if err != nil {
+		gasLimit = 300_000
+	}
+	reqGas := new(big.Int).SetUint64(gasLimit)
+
+	buildReq := func(gas *big.Int) (ForwardRequestData, error) {
+		sig, err := signForwardRequest(signer, forwarderAddr, domain, fromAddr, recipientAddr, value, gas, nonce, deadlineUint, calldata)
+		if err != nil {
+			return ForwardRequestData{}, err
+		}
+		return ForwardRequestData{
+			From:      fromAddr,
+			To:        recipientAddr,
+			Value:     new(big.Int).Set(value),
+			Gas:       new(big.Int).Set(gas),
+			Deadline:  new(big.Int).Set(deadlineBig),
+			Data:      calldata,
+			Signature: sig,
+		}, nil
+	}
+
+	req, err := buildReq(reqGas)
+	if err != nil {
+		return nil, err
+	}
+
+	receipt, err := c.SendTxByRelayer(ctx, fb, forwarder, "execute", req)
+	if err == nil {
+		return receipt, nil
+	}
+
+	// Retry once with bumped gas.
+	bumped := new(big.Int).Set(reqGas)
+	if bumped.Sign() > 0 {
+		bumped.Mul(bumped, big.NewInt(3))
+		bumped.Div(bumped, big.NewInt(2))
+	}
+	if bumped.Cmp(big.NewInt(800_000)) < 0 {
+		bumped.SetInt64(800_000)
+	}
+	retryReq, retryErr := buildReq(bumped)
+	if retryErr != nil {
+		return nil, err
+	}
+	receipt2, retrySendErr := c.SendTxByRelayer(ctx, fb, forwarder, "execute", retryReq)
+	if retrySendErr == nil {
+		return receipt2, nil
+	}
+	return nil, retrySendErr
+}
+
+func (c *Client) contractABI(name types.ContractName) (common.Address, abi.ABI, error) {
+	artifacts, err := abis.Get(c.cfg.Env)
+	if err != nil {
+		return common.Address{}, abi.ABI{}, fmt.Errorf("load abis: %w", err)
+	}
+	art, ok := artifacts[name]
+	if !ok {
+		return common.Address{}, abi.ABI{}, fmt.Errorf("%w: %s", apperr.Blockchain.ErrContractNotFound, name)
+	}
+	addr := common.HexToAddress(art.Address)
+	if addr == (common.Address{}) {
+		return common.Address{}, abi.ABI{}, fmt.Errorf("%w: %s address empty", apperr.Blockchain.ErrContractNotFound, name)
+	}
+	parsedABI, err := abi.JSON(strings.NewReader(string(art.ABI)))
+	if err != nil {
+		return common.Address{}, abi.ABI{}, fmt.Errorf("parse abi for %s: %w", name, err)
+	}
+	return addr, parsedABI, nil
+}
+
+func (c *Client) contractWithABI(name types.ContractName) (*bind.BoundContract, common.Address, abi.ABI, error) {
+	addr, parsed, err := c.contractABI(name)
+	if err != nil {
+		return nil, common.Address{}, abi.ABI{}, err
+	}
+	bound := bind.NewBoundContract(addr, parsed, c.rpc, c.rpc, c.rpc)
+	return bound, addr, parsed, nil
+}
+
+type forwarderEIP712Domain struct {
+	Fields            [1]byte
+	Name              string
+	Version           string
+	ChainId           *big.Int
+	VerifyingContract common.Address
+	Salt              [32]byte
+	Extensions        []*big.Int
+}
+
+func (c *Client) forwarderDomain(ctx context.Context, forwarderAddr common.Address, forwarderABI abi.ABI) (forwarderEIP712Domain, error) {
+	if c == nil || c.rpc == nil {
+		return forwarderEIP712Domain{}, fmt.Errorf("client is nil")
+	}
+	if forwarderAddr == (common.Address{}) {
+		return forwarderEIP712Domain{}, fmt.Errorf("forwarder address is empty")
+	}
+
+	data, err := forwarderABI.Pack("eip712Domain")
+	if err != nil {
+		return forwarderEIP712Domain{}, fmt.Errorf("pack eip712Domain: %w", err)
+	}
+
+	raw, err := c.rpc.CallContract(ctx, ethereum.CallMsg{To: &forwarderAddr, Data: data}, nil)
+	if err != nil {
+		return forwarderEIP712Domain{}, fmt.Errorf("call eip712Domain: %w", err)
+	}
+
+	values, err := forwarderABI.Unpack("eip712Domain", raw)
+	if err != nil {
+		return forwarderEIP712Domain{}, fmt.Errorf("unpack eip712Domain (len=%d): %w", len(raw), err)
+	}
+	if len(values) != 7 {
+		return forwarderEIP712Domain{}, fmt.Errorf("unexpected eip712Domain outputs: want 7 got %d", len(values))
+	}
+
+	var fields [1]byte
+	switch v := values[0].(type) {
+	case [1]byte:
+		fields = v
+	case uint8:
+		fields[0] = byte(v)
+	default:
+		return forwarderEIP712Domain{}, fmt.Errorf("unexpected eip712Domain.fields type %T", values[0])
+	}
+
+	name, ok := values[1].(string)
+	if !ok {
+		return forwarderEIP712Domain{}, fmt.Errorf("unexpected eip712Domain.name type %T", values[1])
+	}
+	version, ok := values[2].(string)
+	if !ok {
+		return forwarderEIP712Domain{}, fmt.Errorf("unexpected eip712Domain.version type %T", values[2])
+	}
+
+	var chainID *big.Int
+	switch v := values[3].(type) {
+	case *big.Int:
+		chainID = v
+	case big.Int:
+		chainID = new(big.Int).Set(&v)
+	default:
+		return forwarderEIP712Domain{}, fmt.Errorf("unexpected eip712Domain.chainId type %T", values[3])
+	}
+	if chainID == nil {
+		chainID = big.NewInt(0)
+	}
+
+	verifyingContract, ok := values[4].(common.Address)
+	if !ok {
+		return forwarderEIP712Domain{}, fmt.Errorf("unexpected eip712Domain.verifyingContract type %T", values[4])
+	}
+	if verifyingContract == (common.Address{}) {
+		return forwarderEIP712Domain{}, fmt.Errorf("invalid forwarder domain verifying contract")
+	}
+
+	var salt [32]byte
+	switch v := values[5].(type) {
+	case [32]byte:
+		salt = v
+	default:
+		return forwarderEIP712Domain{}, fmt.Errorf("unexpected eip712Domain.salt type %T", values[5])
+	}
+
+	extensions, err := castBigIntSlice(values[6])
+	if err != nil {
+		return forwarderEIP712Domain{}, fmt.Errorf("decode eip712Domain.extensions: %w", err)
+	}
+
+	return forwarderEIP712Domain{
+		Fields:            fields,
+		Name:              name,
+		Version:           version,
+		ChainId:           chainID,
+		VerifyingContract: verifyingContract,
+		Salt:              salt,
+		Extensions:        extensions,
+	}, nil
+}
+
+func (c *Client) forwarderNonce(ctx context.Context, forwarderAddr common.Address, forwarderABI abi.ABI, owner common.Address) (*big.Int, error) {
+	if c == nil || c.rpc == nil {
+		return nil, fmt.Errorf("client is nil")
+	}
+	if forwarderAddr == (common.Address{}) {
+		return nil, fmt.Errorf("forwarder address is empty")
+	}
+
+	data, err := forwarderABI.Pack("nonces", owner)
+	if err != nil {
+		return nil, fmt.Errorf("pack nonces: %w", err)
+	}
+
+	raw, err := c.rpc.CallContract(ctx, ethereum.CallMsg{To: &forwarderAddr, Data: data}, nil)
+	if err != nil {
+		return nil, fmt.Errorf("call nonces: %w", err)
+	}
+
+	values, err := forwarderABI.Unpack("nonces", raw)
+	if err != nil {
+		return nil, fmt.Errorf("unpack nonces (len=%d): %w", len(raw), err)
+	}
+	if len(values) != 1 {
+		return nil, fmt.Errorf("unexpected nonces outputs: want 1 got %d", len(values))
+	}
+
+	switch v := values[0].(type) {
+	case *big.Int:
+		return v, nil
+	case big.Int:
+		return new(big.Int).Set(&v), nil
+	default:
+		return nil, fmt.Errorf("unexpected nonces return type %T", values[0])
+	}
+}
+
+func castBigIntSlice(v any) ([]*big.Int, error) {
+	switch vv := v.(type) {
+	case []*big.Int:
+		return vv, nil
+	case []big.Int:
+		out := make([]*big.Int, 0, len(vv))
+		for i := range vv {
+			out = append(out, new(big.Int).Set(&vv[i]))
+		}
+		return out, nil
+	case []any:
+		out := make([]*big.Int, 0, len(vv))
+		for _, item := range vv {
+			switch n := item.(type) {
+			case *big.Int:
+				out = append(out, n)
+			case big.Int:
+				out = append(out, new(big.Int).Set(&n))
+			default:
+				return nil, fmt.Errorf("unexpected element type %T", item)
+			}
+		}
+		return out, nil
+	default:
+		return nil, fmt.Errorf("unexpected slice type %T", v)
+	}
+}
+
+func (c *Client) estimateGas(ctx context.Context, from, to common.Address, data []byte) (uint64, error) {
+	if c == nil || c.rpc == nil {
+		return 0, fmt.Errorf("client is nil")
+	}
+	msg := ethereum.CallMsg{
+		From: from,
+		To:   &to,
+		Data: data,
+	}
+	gas, err := c.rpc.EstimateGas(ctx, msg)
+	if err != nil {
+		return 0, err
+	}
+	// Add a small buffer.
+	return gas + gas/10, nil
+}
+
+func signForwardRequest(
+	signer *ecdsa.PrivateKey,
+	forwarderAddr common.Address,
+	domain forwarderEIP712Domain,
+	from common.Address,
+	to common.Address,
+	value *big.Int,
+	gas *big.Int,
+	nonce *big.Int,
+	deadline uint64,
+	data []byte,
+) ([]byte, error) {
+	if signer == nil {
+		return nil, fmt.Errorf("signer is nil")
+	}
+	if nonce == nil {
+		nonce = big.NewInt(0)
+	}
+	if value == nil {
+		value = big.NewInt(0)
+	}
+	if gas == nil {
+		gas = big.NewInt(0)
+	}
+
+	chainID := domain.ChainId
+	if chainID == nil {
+		chainID = big.NewInt(0)
+	}
+	chainHex := math.NewHexOrDecimal256(chainID.Int64())
+
+	td := apitypes.TypedData{
+		Types: apitypes.Types{
+			"EIP712Domain": []apitypes.Type{
+				{Name: "name", Type: "string"},
+				{Name: "version", Type: "string"},
+				{Name: "chainId", Type: "uint256"},
+				{Name: "verifyingContract", Type: "address"},
+			},
+			"ForwardRequest": []apitypes.Type{
+				{Name: "from", Type: "address"},
+				{Name: "to", Type: "address"},
+				{Name: "value", Type: "uint256"},
+				{Name: "gas", Type: "uint256"},
+				{Name: "nonce", Type: "uint256"},
+				{Name: "deadline", Type: "uint48"},
+				{Name: "data", Type: "bytes"},
+			},
+		},
+		PrimaryType: "ForwardRequest",
+		Domain: apitypes.TypedDataDomain{
+			Name:              domain.Name,
+			Version:           domain.Version,
+			ChainId:           chainHex,
+			VerifyingContract: domain.VerifyingContract.Hex(),
+		},
+		Message: apitypes.TypedDataMessage{
+			"from":     from.Hex(),
+			"to":       to.Hex(),
+			"value":    value.String(),
+			"gas":      gas.String(),
+			"nonce":    nonce.String(),
+			"deadline": fmt.Sprintf("%d", deadline),
+			"data":     hexutil.Encode(data),
+		},
+	}
+
+	digest, _, err := apitypes.TypedDataAndHash(td)
+	if err != nil {
+		return nil, fmt.Errorf("typed data hash: %w", err)
+	}
+
+	sig, err := gethcrypto.Sign(digest, signer)
+	if err != nil {
+		return nil, fmt.Errorf("sign typed data: %w", err)
+	}
+	if len(sig) == 65 && sig[64] < 27 {
+		sig[64] += 27
+	}
+	return sig, nil
 }

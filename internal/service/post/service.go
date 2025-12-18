@@ -12,11 +12,13 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
 	"golang.org/x/sync/errgroup"
 
 	"in-server/pkg/apperr"
 	"in-server/pkg/config"
 	"in-server/pkg/eth"
+	"in-server/pkg/firebase"
 	"in-server/pkg/types"
 )
 
@@ -24,6 +26,7 @@ type Service struct {
 	cfg        config.Config
 	eth        *eth.Client
 	httpClient *http.Client
+	fb         *firebase.Client
 }
 
 func New(ctx context.Context, cfg config.Config) (*Service, error) {
@@ -36,10 +39,16 @@ func New(ctx context.Context, cfg config.Config) (*Service, error) {
 		return nil, fmt.Errorf("dial eth client: %w", err)
 	}
 
+	fbClient, err := firebase.New(ctx, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("init firebase: %w", err)
+	}
+
 	return &Service{
 		cfg:        cfg,
 		eth:        ethClient,
 		httpClient: &http.Client{Timeout: 10 * time.Second},
+		fb:         fbClient,
 	}, nil
 }
 
@@ -97,60 +106,7 @@ func (s *Service) List() ([]Post, error) {
 		return nil, fmt.Errorf("owner address: %w", err)
 	}
 
-	contract, _, err := s.eth.Contract(types.POSTSTORAGE)
-	if err != nil {
-		return nil, fmt.Errorf("bind post storage: %w", err)
-	}
-
-	var raw []struct {
-		Id  *big.Int
-		Uri string
-	}
-
-	callOpts := &bind.CallOpts{Context: ctx}
-
-	callResults := make([]any, 1)
-	callResults[0] = new([]struct {
-		Id  *big.Int
-		Uri string
-	})
-
-	if err := contract.Call(callOpts, &callResults, "getPosts", ownerAddr); err != nil {
-		return nil, fmt.Errorf("call getPosts: %w", err)
-	}
-
-	rawPtr, ok := callResults[0].(*[]struct {
-		Id  *big.Int
-		Uri string
-	})
-	if !ok || rawPtr == nil {
-		return nil, fmt.Errorf("unexpected call result type for getPosts")
-	}
-	raw = *rawPtr
-
-	posts := make([]Post, len(raw))
-	eg, egctx := errgroup.WithContext(ctx)
-	for i, p := range raw {
-		i, p := i, p
-		eg.Go(func() error {
-			meta, err := s.fetchMetadata(egctx, p.Uri)
-			if err != nil {
-				return fmt.Errorf("fetch metadata for %s: %w", p.Uri, err)
-			}
-			tokenID := p.Id.String()
-			posts[i] = mapMetadataToPost(meta, tokenID, p.Uri)
-			return nil
-		})
-	}
-	if err := eg.Wait(); err != nil {
-		return nil, err
-	}
-
-	sort.Slice(posts, func(i, j int) bool {
-		return parsePublishedAt(posts[i].PublishedAt).After(parsePublishedAt(posts[j].PublishedAt))
-	})
-
-	return posts, nil
+	return s.listByOwner(ctx, ownerAddr)
 }
 
 func (s *Service) fetchMetadata(ctx context.Context, url string) (metadata, error) {
@@ -179,6 +135,68 @@ func (s *Service) fetchMetadata(ctx context.Context, url string) (metadata, erro
 		return metadata{}, fmt.Errorf("decode metadata: %w", err)
 	}
 	return meta, nil
+}
+
+func (s *Service) listByOwner(ctx context.Context, ownerAddr common.Address) ([]Post, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if s.eth == nil {
+		return nil, fmt.Errorf("eth client is nil")
+	}
+	if ownerAddr == (common.Address{}) {
+		return nil, fmt.Errorf("owner address is empty")
+	}
+
+	contract, _, err := s.eth.Contract(types.POSTSTORAGE)
+	if err != nil {
+		return nil, fmt.Errorf("bind post storage: %w", err)
+	}
+
+	callOpts := &bind.CallOpts{Context: ctx}
+
+	callResults := make([]any, 1)
+	callResults[0] = new([]struct {
+		Id  *big.Int
+		Uri string
+	})
+
+	if err := contract.Call(callOpts, &callResults, "getPosts", ownerAddr); err != nil {
+		return nil, fmt.Errorf("call getPosts: %w", err)
+	}
+
+	rawPtr, ok := callResults[0].(*[]struct {
+		Id  *big.Int
+		Uri string
+	})
+	if !ok || rawPtr == nil {
+		return nil, fmt.Errorf("unexpected call result type for getPosts")
+	}
+
+	raw := *rawPtr
+	posts := make([]Post, len(raw))
+	eg, egctx := errgroup.WithContext(ctx)
+	for i, p := range raw {
+		i, p := i, p
+		eg.Go(func() error {
+			meta, err := s.fetchMetadata(egctx, p.Uri)
+			if err != nil {
+				return fmt.Errorf("fetch metadata for %s: %w", p.Uri, err)
+			}
+			tokenID := p.Id.String()
+			posts[i] = mapMetadataToPost(meta, tokenID, p.Uri)
+			return nil
+		})
+	}
+	if err := eg.Wait(); err != nil {
+		return nil, err
+	}
+
+	sort.Slice(posts, func(i, j int) bool {
+		return parsePublishedAt(posts[i].PublishedAt).After(parsePublishedAt(posts[j].PublishedAt))
+	})
+
+	return posts, nil
 }
 
 func mapMetadataToPost(meta metadata, tokenID, metadataURL string) Post {

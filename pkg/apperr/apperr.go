@@ -82,3 +82,23 @@ var Subscriber = struct {
 }{
 	ErrGetSubscribers: New("FAILED_TO_GET_SUBSCRIBERS", "failed to get subscribers", http.StatusInternalServerError),
 }
+
+var Post = struct {
+	ErrInvalidBody      *Error
+	ErrAdminCodeMissing *Error
+	ErrInvalidAdminCode *Error
+	ErrDuplicatePost    *Error
+	ErrInvalidRequest   *Error
+	ErrS3BucketMissing  *Error
+	ErrUploadMetadata   *Error
+	ErrPublishFailed    *Error
+}{
+	ErrInvalidBody:      New("INVALID_BODY", "invalid request body", http.StatusBadRequest),
+	ErrAdminCodeMissing: New("ADMIN_CODE_MISSING", "admin code is required", http.StatusBadRequest),
+	ErrInvalidAdminCode: New("INVALID_ADMIN_CODE", "invalid admin code", http.StatusBadRequest),
+	ErrDuplicatePost:    New("DUPLICATE_POST", "a post with the same slug already exists", http.StatusConflict),
+	ErrInvalidRequest:   New("INVALID_REQUEST", "invalid request", http.StatusBadRequest),
+	ErrS3BucketMissing:  New("AWS_S3_BUCKET_MISSING", "aws s3 bucket is empty", http.StatusInternalServerError),
+	ErrUploadMetadata:   New("FAILED_UPLOAD_METADATA", "failed to upload metadata", http.StatusInternalServerError),
+	ErrPublishFailed:    New("FAILED_PUBLISH_POST", "failed to publish post", http.StatusInternalServerError),
+}
