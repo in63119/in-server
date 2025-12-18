@@ -15,8 +15,8 @@ type Handler struct{ svc *subscriber.Service }
 func New(svc *subscriber.Service) *Handler { return &Handler{svc: svc} }
 
 func (h *Handler) Register(r *gin.RouterGroup) {
-	r.GET("/subscriber", h.count)
-	r.POST("/subscriber", h.create)
+	r.GET("", h.count)
+	r.POST("", h.create)
 }
 
 func (h *Handler) count(c *gin.Context) {
