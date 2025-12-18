@@ -102,3 +102,9 @@ var Post = struct {
 	ErrUploadMetadata:   New("FAILED_UPLOAD_METADATA", "failed to upload metadata", http.StatusInternalServerError),
 	ErrPublishFailed:    New("FAILED_PUBLISH_POST", "failed to publish post", http.StatusInternalServerError),
 }
+
+var Email = struct {
+	ErrFailedSendingEmail *Error
+}{
+	ErrFailedSendingEmail: New("FAILED_SENDING_EMAIL", "failed sending email", http.StatusInternalServerError),
+}
