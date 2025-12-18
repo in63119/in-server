@@ -1,6 +1,7 @@
 package visitors
 
 import (
+	"log"
 	"net/http"
 	"strings"
 
@@ -18,9 +19,9 @@ type Handler struct {
 func New(svc *visitor.Service) *Handler { return &Handler{svc: svc} }
 
 func (h *Handler) Register(r *gin.RouterGroup) {
-	r.GET("/visitors", h.count)
-	r.POST("/visitors", h.visit)
-	r.GET("/visitors/check", h.check)
+	r.GET("", h.count)
+	r.POST("", h.visit)
+	r.GET("/check", h.check)
 }
 
 func (h *Handler) count(c *gin.Context) {
@@ -37,6 +38,7 @@ func (h *Handler) visit(c *gin.Context) {
 		URL string `json:"url"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil || strings.TrimSpace(req.URL) == "" {
+		log.Println(err)
 		httputil.WriteError(c, apperr.Visitors.ErrInvalidBody)
 		return
 	}
@@ -48,6 +50,7 @@ func (h *Handler) visit(c *gin.Context) {
 	}
 
 	if err := h.svc.Visit(ip, req.URL); err != nil {
+		log.Println(err)
 		httputil.WriteError(c, err)
 		return
 	}
