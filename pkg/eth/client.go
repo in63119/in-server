@@ -373,7 +373,7 @@ func (c *Client) ExecuteMetaTx(ctx context.Context, fb *firebase.Client, recipie
 	reqGas := new(big.Int).SetUint64(gasLimit)
 
 	buildReq := func(gas *big.Int) (ForwardRequestData, error) {
-		sig, err := signForwardRequest(signer, forwarderAddr, domain, fromAddr, recipientAddr, value, gas, nonce, deadlineUint, calldata)
+		sig, err := signForwardRequest(signer, domain, fromAddr, recipientAddr, value, gas, nonce, deadlineUint, calldata)
 		if err != nil {
 			return ForwardRequestData{}, err
 		}
@@ -630,7 +630,6 @@ func (c *Client) estimateGas(ctx context.Context, from, to common.Address, data 
 
 func signForwardRequest(
 	signer *ecdsa.PrivateKey,
-	forwarderAddr common.Address,
 	domain forwarderEIP712Domain,
 	from common.Address,
 	to common.Address,
