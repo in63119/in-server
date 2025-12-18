@@ -21,6 +21,7 @@ type Config struct {
 		Param           string `envconfig:"AWS_SSM_SERVER"`
 		S3              struct {
 			Bucket    string `envconfig:"AWS_S3_BUCKET"`
+			MomBucket string `envconfig:"AWS_S3_MOM_BUCKET"`
 			AccessKey string `envconfig:"AWS_S3_ACCESS_KEY_ID"`
 			SecretKey string `envconfig:"AWS_S3_SECRET_ACCESS_KEY"`
 		}
