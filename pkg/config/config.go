@@ -42,6 +42,15 @@ type Config struct {
 			Relayer3 string `envconfig:"BLOCKCHAIN_PRIVATE_KEY_RELAYER3"`
 		}
 	}
+
+	Google struct {
+		ClientKey           string `envconfig:"GOOGLE_CLIENT_KEY"`
+		SecretKey           string `envconfig:"GOOGLE_SECRET_KEY"`
+		RefreshToken        string `envconfig:"GOOGLE_REFRESH_TOKEN"`
+		GmailSender         string `envconfig:"GOOGLE_GMAIL_SENDER"`
+		RedirectURIEndpoint string `envconfig:"GOOGLE_REDIRECT_URI_ENDPOINT"`
+		GeminiAPIKey        string `envconfig:"GOOGLE_GEMINI_API_KEY"`
+	}
 }
 
 func Load() (Config, error) {

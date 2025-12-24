@@ -59,10 +59,12 @@ var Blockchain = struct {
 	ErrRPCURLMissing      *Error
 	ErrContractNotFound   *Error
 	ErrNoAvailableRelayer *Error
+	ErrInvalidWallet      *Error
 }{
 	ErrRPCURLMissing:      New("BLOCKCHAIN_RPC_URL_MISSING", "blockchain rpc url is empty", http.StatusInternalServerError),
 	ErrContractNotFound:   New("CONTRACT_NOT_FOUND", "contract not found", http.StatusNotFound),
 	ErrNoAvailableRelayer: New("NO_AVAILABLE_RELAYER", "no available relayer", http.StatusInternalServerError),
+	ErrInvalidWallet:      New("INVALID_WALLET", "invalid wallet", http.StatusBadRequest),
 }
 
 var Visitors = struct {
@@ -101,4 +103,18 @@ var Post = struct {
 	ErrS3BucketMissing:  New("AWS_S3_BUCKET_MISSING", "aws s3 bucket is empty", http.StatusInternalServerError),
 	ErrUploadMetadata:   New("FAILED_UPLOAD_METADATA", "failed to upload metadata", http.StatusInternalServerError),
 	ErrPublishFailed:    New("FAILED_PUBLISH_POST", "failed to publish post", http.StatusInternalServerError),
+}
+
+var Email = struct {
+	ErrInvalidBody        *Error
+	ErrFailedSendingEmail *Error
+	ErrClaimPinCode       *Error
+	ErrVerifyPinCode      *Error
+	ErrInvalidEmail       *Error
+}{
+	ErrInvalidBody:        New("INVALID_BODY", "invalid request body", http.StatusBadRequest),
+	ErrFailedSendingEmail: New("FAILED_SENDING_EMAIL", "failed sending email", http.StatusInternalServerError),
+	ErrClaimPinCode:       New("FAILED_TO_CLAIM_PIN_CODE", "failed to claim pin code", http.StatusInternalServerError),
+	ErrVerifyPinCode:      New("FAILED_TO_VERIFY_PIN_CODE", "failed to verify pin code", http.StatusInternalServerError),
+	ErrInvalidEmail:       New("INVALID_EMAIL", "invalid email address", http.StatusBadRequest),
 }

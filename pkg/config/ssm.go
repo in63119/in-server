@@ -117,6 +117,13 @@ func applySSMJSON(cfg *Config, raw string) error {
 	cfg.Firebase.PrivateKey = firstNonEmpty(apply("FIREBASE.PRIVATE_KEY"), cfg.Firebase.PrivateKey)
 	cfg.Firebase.DatabaseURL = firstNonEmpty(apply("FIREBASE.DATABASE_URL"), cfg.Firebase.DatabaseURL)
 
+	cfg.Google.ClientKey = firstNonEmpty(apply("GOOGLE.CLIENT_KEY"), cfg.Google.ClientKey)
+	cfg.Google.SecretKey = firstNonEmpty(apply("GOOGLE.SECRET_KEY"), cfg.Google.SecretKey)
+	cfg.Google.RefreshToken = firstNonEmpty(apply("GOOGLE.REFRESH_TOKEN"), cfg.Google.RefreshToken)
+	cfg.Google.GmailSender = firstNonEmpty(apply("GOOGLE.GMAIL_SENDER"), cfg.Google.GmailSender)
+	cfg.Google.RedirectURIEndpoint = firstNonEmpty(apply("GOOGLE.REDIRECT_URI_ENDPOINT"), cfg.Google.RedirectURIEndpoint)
+	cfg.Google.GeminiAPIKey = firstNonEmpty(apply("GOOGLE.GEMINI_API_KEY"), cfg.Google.GeminiAPIKey)
+
 	return nil
 }
 

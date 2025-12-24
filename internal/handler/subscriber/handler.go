@@ -1,6 +1,7 @@
 package subscriber
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -29,5 +30,6 @@ func (h *Handler) count(c *gin.Context) {
 }
 
 func (h *Handler) create(c *gin.Context) {
+	log.Println("subscriber create endpoint called")
 	httputil.WriteError(c, apperr.System.ErrNotImplemented)
 }
