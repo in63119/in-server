@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"log"
 	"strings"
 
 	"google.golang.org/api/gmail/v1"
@@ -36,6 +37,7 @@ func SendEmail(ctx context.Context, cfg config.Config, content EmailContent) err
 
 	gmailSvc, sender, err := cfg.NewGmailClient(ctx)
 	if err != nil {
+		log.Println(err)
 		return apperr.Wrap(err, apperr.Email.ErrFailedSendingEmail.Code, apperr.Email.ErrFailedSendingEmail.Message, apperr.Email.ErrFailedSendingEmail.Status)
 	}
 
@@ -50,6 +52,7 @@ func SendEmail(ctx context.Context, cfg config.Config, content EmailContent) err
 
 	msg := &gmail.Message{Raw: encodeToBase64URL(rawMessage)}
 	if _, err := gmailSvc.Users.Messages.Send("me", msg).Do(); err != nil {
+		log.Println(err)
 		return apperr.Wrap(err, apperr.Email.ErrFailedSendingEmail.Code, apperr.Email.ErrFailedSendingEmail.Message, apperr.Email.ErrFailedSendingEmail.Status)
 	}
 	return nil

@@ -1,7 +1,6 @@
 package email
 
 import (
-	"log"
 	"net/http"
 	"strings"
 
@@ -44,7 +43,6 @@ func (h *Handler) claimPinCode(c *gin.Context) {
 	}
 
 	if err := h.svc.ClaimPinCode(c.Request.Context(), pinCode, email); err != nil {
-		log.Println(err)
 		httputil.WriteError(c, err)
 		return
 	}
@@ -54,7 +52,6 @@ func (h *Handler) claimPinCode(c *gin.Context) {
 
 func (h *Handler) verifyPinCode(c *gin.Context) {
 	var req struct {
-		Address string `json:"address"`
 		PinCode string `json:"pinCode"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -63,14 +60,13 @@ func (h *Handler) verifyPinCode(c *gin.Context) {
 		return
 	}
 
-	address := strings.TrimSpace(req.Address)
 	pinCode := strings.TrimSpace(req.PinCode)
-	if address == "" || pinCode == "" {
+	if pinCode == "" {
 		httputil.WriteError(c, apperr.Email.ErrInvalidBody)
 		return
 	}
 
-	verified, err := h.svc.VerifyPinCode(c.Request.Context(), address, pinCode)
+	verified, err := h.svc.VerifyPinCode(c.Request.Context(), pinCode)
 	if err != nil {
 		_ = c.Error(err)
 		httputil.WriteError(c, err)

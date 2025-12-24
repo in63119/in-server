@@ -128,7 +128,7 @@ func (s *Service) sendPinCodeEmail(ctx context.Context, recipient, pinCode strin
 	})
 }
 
-func (s *Service) VerifyPinCode(ctx context.Context, address, pinCode string) (bool, error) {
+func (s *Service) VerifyPinCode(ctx context.Context, pinCode string) (bool, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -136,10 +136,16 @@ func (s *Service) VerifyPinCode(ctx context.Context, address, pinCode string) (b
 		return false, fmt.Errorf("eth client is nil")
 	}
 
-	account := common.HexToAddress(strings.TrimSpace(address))
-	if account == (common.Address{}) {
-		return false, apperr.Email.ErrVerifyPinCode
+	adminCode := strings.TrimSpace(s.cfg.Auth.AdminCode)
+	if adminCode == "" {
+		return false, apperr.System.ErrMissingAuthAdminCode
 	}
+
+	_, address, err := s.eth.Wallet(adminCode)
+	if err != nil {
+		return false, apperr.Blockchain.ErrInvalidWallet
+	}
+
 	pinCode = strings.TrimSpace(pinCode)
 	if pinCode == "" {
 		return false, apperr.Email.ErrVerifyPinCode
@@ -161,14 +167,14 @@ func (s *Service) VerifyPinCode(ctx context.Context, address, pinCode string) (b
 
 	var verified bool
 	out := []any{&verified}
-	if err := contract.Call(&bind.CallOpts{Context: ctx, From: relayerAddr}, &out, "isPinCodeActive", account, pinCode); err != nil {
+	if err := contract.Call(&bind.CallOpts{Context: ctx, From: relayerAddr}, &out, "isPinCodeActive", address, pinCode); err != nil {
 		return false, apperr.Wrap(err, apperr.Email.ErrVerifyPinCode.Code, "isPinCodeActive", apperr.Email.ErrVerifyPinCode.Status)
 	}
 
 	defer func() {
 		clearCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		_ = s.clearExpiredPinCodes(clearCtx, account, pinCode)
+		_ = s.clearExpiredPinCodes(clearCtx, address, pinCode)
 	}()
 
 	return verified, nil

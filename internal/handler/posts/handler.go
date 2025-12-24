@@ -66,14 +66,12 @@ func (h *Handler) publish(c *gin.Context) {
 
 	payload, err := parseNFTMetadata(req.Payload)
 	if err != nil {
-		log.Println(err)
 		httputil.WriteError(c, err)
 		return
 	}
 
 	savedMetadataURL, err := h.svc.Publish(c.Request.Context(), adminCode, payload, metadataURL)
 	if err != nil {
-		log.Println("여기가 문제인거냐", err)
 		httputil.WriteError(c, err)
 		return
 	}
