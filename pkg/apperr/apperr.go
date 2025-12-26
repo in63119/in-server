@@ -72,11 +72,13 @@ var Visitors = struct {
 	ErrCheckVisit  *Error
 	ErrAddVisit    *Error
 	ErrVisitCount  *Error
+	ErrVisitLogs   *Error
 }{
 	ErrInvalidBody: New("INVALID_BODY", "url is required", http.StatusForbidden),
 	ErrCheckVisit:  New("FAILED_TO_CHECK_VISIT", "failed to check visit", http.StatusInternalServerError),
 	ErrAddVisit:    New("FAILED_TO_ADD_VISIT", "failed to add visit", http.StatusInternalServerError),
 	ErrVisitCount:  New("FAILED_TO_GET_VISIT_COUNT", "failed to get visit count", http.StatusInternalServerError),
+	ErrVisitLogs:   New("FAILED_TO_GET_VISIT_LOGS", "failed to get visit logs", http.StatusInternalServerError),
 }
 
 var Subscriber = struct {
