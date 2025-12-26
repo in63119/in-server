@@ -81,8 +81,14 @@ var Visitors = struct {
 
 var Subscriber = struct {
 	ErrGetSubscribers *Error
+	ErrInvalidBody    *Error
+	ErrCreate         *Error
+	ErrAlreadyExists  *Error
 }{
 	ErrGetSubscribers: New("FAILED_TO_GET_SUBSCRIBERS", "failed to get subscribers", http.StatusInternalServerError),
+	ErrInvalidBody:    New("INVALID_BODY", "invalid request body", http.StatusBadRequest),
+	ErrCreate:         New("FAILED_TO_SUBSCRIBE", "failed to subscribe", http.StatusInternalServerError),
+	ErrAlreadyExists:  New("ALREADY_EXISTS_SUBSCRIBER", "subscriber already exists", http.StatusConflict),
 }
 
 var Post = struct {
