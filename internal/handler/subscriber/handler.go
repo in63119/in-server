@@ -3,6 +3,7 @@ package subscriber
 import (
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -30,6 +31,25 @@ func (h *Handler) count(c *gin.Context) {
 }
 
 func (h *Handler) create(c *gin.Context) {
-	log.Println("subscriber create endpoint called")
-	httputil.WriteError(c, apperr.System.ErrNotImplemented)
+	var req struct {
+		Email string `json:"email"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Println("subscriber create bind error:", err)
+		httputil.WriteError(c, apperr.Subscriber.ErrInvalidBody)
+		return
+	}
+
+	req.Email = strings.TrimSpace(req.Email)
+	if req.Email == "" {
+		httputil.WriteError(c, apperr.Subscriber.ErrInvalidBody)
+		return
+	}
+
+	if err := h.svc.Create("", req.Email); err != nil {
+		httputil.WriteError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"subscribed": true})
 }
