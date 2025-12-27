@@ -3,6 +3,7 @@ package visitors
 import (
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -22,6 +23,7 @@ func (h *Handler) Register(r *gin.RouterGroup) {
 	r.GET("", h.count)
 	r.POST("", h.visit)
 	r.GET("/check", h.check)
+	r.GET("/logs", h.list)
 }
 
 func (h *Handler) count(c *gin.Context) {
@@ -72,6 +74,29 @@ func (h *Handler) check(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"visited": visited})
+}
+
+func (h *Handler) list(c *gin.Context) {
+	limitParam := strings.TrimSpace(c.Query("limit"))
+	limit := uint64(50)
+	if limitParam != "" {
+		if v, err := strconv.ParseUint(limitParam, 10, 64); err == nil {
+			if v < 1 {
+				v = 1
+			}
+			if v > 200 {
+				v = 200
+			}
+			limit = v
+		}
+	}
+
+	entries, err := h.svc.List(limit)
+	if err != nil {
+		httputil.WriteError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"visits": entries})
 }
 
 func clientIP(c *gin.Context) string {

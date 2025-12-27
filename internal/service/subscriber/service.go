@@ -143,6 +143,68 @@ func (s *Service) Create(address, email string) error {
 	return nil
 }
 
+func (s *Service) List(limit, offset int) ([]string, error) {
+	ctx := context.Background()
+
+	if s.eth == nil {
+		return nil, fmt.Errorf("eth client is nil")
+	}
+
+	adminCode := strings.TrimSpace(s.cfg.Auth.AdminCode)
+	if adminCode == "" {
+		return nil, apperr.System.ErrMissingAuthAdminCode
+	}
+
+	_, ownerAddr, err := s.eth.Wallet(adminCode)
+	if err != nil {
+		return nil, fmt.Errorf("owner address: %w", err)
+	}
+
+	accts, err := s.eth.Accounts()
+	if err != nil {
+		return nil, fmt.Errorf("load relayer accounts: %w", err)
+	}
+
+	relayerAddr, err := eth.AddressFromPrivateKey(accts.Relayer)
+	if err != nil {
+		return nil, fmt.Errorf("relayer address: %w", err)
+	}
+
+	contract, _, err := s.eth.Contract(types.SUBSCRIBERSTORAGE)
+	if err != nil {
+		return nil, fmt.Errorf("bind subscriber storage: %w", err)
+	}
+
+	callOpts := &bind.CallOpts{Context: ctx, From: relayerAddr}
+
+	var emails []string
+	out := []any{&emails}
+	if err := contract.Call(callOpts, &out, "getSubscriberEmails", ownerAddr); err != nil {
+		return nil, apperr.Wrap(err, apperr.Subscriber.ErrGetSubscribers.Code, "getSubscriberEmails", apperr.Subscriber.ErrGetSubscribers.Status)
+	}
+
+	if offset < 0 {
+		offset = 0
+	}
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 200 {
+		limit = 200
+	}
+
+	start := offset
+	if start > len(emails) {
+		start = len(emails)
+	}
+	end := start + limit
+	if end > len(emails) {
+		end = len(emails)
+	}
+
+	return emails[start:end], nil
+}
+
 func hasSubscriberEmailAddedEvent(env string, contractAddr common.Address, receipt *gethtypes.Receipt) (bool, error) {
 	if receipt == nil {
 		return false, fmt.Errorf("receipt is nil")

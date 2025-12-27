@@ -24,6 +24,11 @@ type Service struct {
 	fb  *firebase.Client
 }
 
+type VisitEntry struct {
+	Index uint64 `json:"index"`
+	URL   string `json:"url"`
+}
+
 func New(ctx context.Context, cfg config.Config) (*Service, error) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -175,4 +180,80 @@ func (s *Service) Count() (uint64, error) {
 	}
 
 	return total.Uint64(), nil
+}
+
+func (s *Service) List(limit uint64) ([]VisitEntry, error) {
+	ctx := context.Background()
+
+	if s.eth == nil {
+		return nil, fmt.Errorf("eth client is nil")
+	}
+
+	adminCode := strings.TrimSpace(s.cfg.Auth.AdminCode)
+	if adminCode == "" {
+		return nil, apperr.System.ErrMissingAuthAdminCode
+	}
+
+	_, ownerAddr, err := s.eth.Wallet(adminCode)
+	if err != nil {
+		return nil, fmt.Errorf("owner address: %w", err)
+	}
+
+	contract, _, err := s.eth.Contract(types.VISITORSTORAGE)
+	if err != nil {
+		return nil, fmt.Errorf("bind visitor storage: %w", err)
+	}
+
+	callOpts := &bind.CallOpts{Context: ctx}
+
+	var dayID uint64
+	dayOut := []any{&dayID}
+	if err := contract.Call(callOpts, &dayOut, "currentDayId"); err != nil {
+		return nil, apperr.Wrap(err, apperr.Visitors.ErrVisitLogs.Code, "currentDayId", apperr.Visitors.ErrVisitLogs.Status)
+	}
+	if dayOut[0] == nil {
+		return nil, fmt.Errorf("unexpected currentDayId result type")
+	}
+
+	var total *big.Int
+	totalOut := []any{&total}
+	if err := contract.Call(callOpts, &totalOut, "hashedVisitorCount", ownerAddr, dayID); err != nil {
+		return nil, apperr.Wrap(err, apperr.Visitors.ErrVisitLogs.Code, "hashedVisitorCount", apperr.Visitors.ErrVisitLogs.Status)
+	}
+	if total == nil {
+		return nil, fmt.Errorf("unexpected hashedVisitorCount result type")
+	}
+
+	totalUint := total.Uint64()
+	if totalUint == 0 {
+		return []VisitEntry{}, nil
+	}
+
+	if limit == 0 {
+		limit = 50
+	}
+	if limit > 200 {
+		limit = 200
+	}
+
+	start := uint64(0)
+	if totalUint > limit {
+		start = totalUint - limit
+	}
+
+	entries := make([]VisitEntry, 0, totalUint-start)
+	for idx := start; idx < totalUint; idx++ {
+		var url string
+		out := []any{&url}
+		if err := contract.Call(callOpts, &out, "visitUrlAt", ownerAddr, dayID, new(big.Int).SetUint64(idx)); err != nil {
+			return nil, apperr.Wrap(err, apperr.Visitors.ErrVisitLogs.Code, "visitUrlAt", apperr.Visitors.ErrVisitLogs.Status)
+		}
+		entries = append(entries, VisitEntry{Index: idx, URL: url})
+	}
+
+	for i, j := 0, len(entries)-1; i < j; i, j = i+1, j-1 {
+		entries[i], entries[j] = entries[j], entries[i]
+	}
+
+	return entries, nil
 }
