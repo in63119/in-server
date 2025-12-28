@@ -1,8 +1,10 @@
 package config
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -157,6 +159,44 @@ func (cfg Config) NewGmailClient(ctx context.Context) (*gmail.Service, string, e
 	}
 
 	return svc, sender, nil
+}
+
+func (cfg Config) ValidateGmailRefreshToken(ctx context.Context) (bool, error) {
+	clientID := strings.TrimSpace(cfg.Google.ClientKey)
+	clientSecret := strings.TrimSpace(cfg.Google.SecretKey)
+	refreshToken := strings.TrimSpace(cfg.Google.RefreshToken)
+
+	if clientID == "" || clientSecret == "" || refreshToken == "" {
+		return false, fmt.Errorf("google gmail config incomplete")
+	}
+
+	oauthCfg := oauth2.Config{
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		Endpoint:     google.Endpoint,
+		Scopes:       []string{gmailSendScope},
+	}
+
+	ts := oauthCfg.TokenSource(ctx, &oauth2.Token{RefreshToken: refreshToken})
+	_, err := ts.Token()
+	if err == nil {
+		return true, nil
+	}
+
+	var rErr *oauth2.RetrieveError
+	if errors.As(err, &rErr) {
+		if rErr.Response != nil && rErr.Response.StatusCode == http.StatusBadRequest {
+			if bytes.Contains(bytes.ToLower(rErr.Body), []byte("invalid_grant")) {
+				return false, nil
+			}
+		}
+	}
+
+	if strings.Contains(strings.ToLower(err.Error()), "invalid_grant") {
+		return false, nil
+	}
+
+	return false, err
 }
 
 func joinURL(baseURL, endpoint string) (string, error) {

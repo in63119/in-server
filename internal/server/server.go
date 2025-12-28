@@ -1,19 +1,38 @@
 package server
 
 import (
+	"context"
+	"sync"
 	"time"
-
-	"in-server/pkg/config"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+
+	emailhandler "in-server/internal/handler/email"
+	googhandler "in-server/internal/handler/google"
+	posthandler "in-server/internal/handler/posts"
+	subscriberhandler "in-server/internal/handler/subscriber"
+	visitorshandler "in-server/internal/handler/visitors"
+	emailsvc "in-server/internal/service/email"
+	googlesvc "in-server/internal/service/google"
+	postsvc "in-server/internal/service/post"
+	subscribersvc "in-server/internal/service/subscriber"
+	visitorsvc "in-server/internal/service/visitor"
+	"in-server/pkg/config"
 )
 
 type Server struct {
 	cfg    config.Config
 	engine *gin.Engine
 	log    *zap.Logger
+
+	emailHandler      *emailhandler.Handler
+	postHandler       *posthandler.Handler
+	visitorsHandler   *visitorshandler.Handler
+	subscriberHandler *subscriberhandler.Handler
+	googleHandler     *googhandler.Handler
+	mu                sync.RWMutex
 }
 
 func New(cfg config.Config, log *zap.Logger) *Server {
@@ -38,6 +57,59 @@ func New(cfg config.Config, log *zap.Logger) *Server {
 	}
 	s.registerRoutes()
 	return s
+}
+
+func (s *Server) reloadAll(ctx context.Context) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	newCfg, err := config.Reload(ctx)
+	if err != nil {
+		return err
+	}
+
+	emailSvc, err := emailsvc.New(ctx, newCfg)
+	if err != nil {
+		return err
+	}
+	postSvc, err := postsvc.New(ctx, newCfg)
+	if err != nil {
+		return err
+	}
+	visitorSvc, err := visitorsvc.New(ctx, newCfg)
+	if err != nil {
+		return err
+	}
+	subscriberSvc, err := subscribersvc.New(ctx, newCfg)
+	if err != nil {
+		return err
+	}
+	googleSvc, err := googlesvc.New(ctx, newCfg)
+	if err != nil {
+		return err
+	}
+
+	s.mu.Lock()
+	s.cfg = newCfg
+	if s.emailHandler != nil {
+		s.emailHandler.SetService(emailSvc)
+	}
+	if s.postHandler != nil {
+		s.postHandler.SetService(postSvc)
+	}
+	if s.visitorsHandler != nil {
+		s.visitorsHandler.SetService(visitorSvc)
+	}
+	if s.subscriberHandler != nil {
+		s.subscriberHandler.SetService(subscriberSvc)
+	}
+	if s.googleHandler != nil {
+		s.googleHandler.SetService(googleSvc)
+	}
+	s.mu.Unlock()
+
+	return nil
 }
 
 func (s *Server) Run() error {

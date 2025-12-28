@@ -3,6 +3,7 @@ package email
 import (
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 
@@ -11,9 +12,24 @@ import (
 	"in-server/pkg/apperr"
 )
 
-type Handler struct{ svc *emailsvc.Service }
+type Handler struct {
+	mu  sync.RWMutex
+	svc *emailsvc.Service
+}
 
 func New(svc *emailsvc.Service) *Handler { return &Handler{svc: svc} }
+
+func (h *Handler) SetService(svc *emailsvc.Service) {
+	h.mu.Lock()
+	h.svc = svc
+	h.mu.Unlock()
+}
+
+func (h *Handler) getSvc() *emailsvc.Service {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return h.svc
+}
 
 func (h *Handler) Register(r *gin.RouterGroup) {
 	r.POST("/pin", h.claimPinCode)
@@ -21,6 +37,11 @@ func (h *Handler) Register(r *gin.RouterGroup) {
 }
 
 func (h *Handler) claimPinCode(c *gin.Context) {
+	svc := h.getSvc()
+	if svc == nil {
+		httputil.WriteError(c, apperr.Email.ErrInvalidBody)
+		return
+	}
 	var req struct {
 		Email string `json:"email"`
 	}
@@ -42,7 +63,7 @@ func (h *Handler) claimPinCode(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.ClaimPinCode(c.Request.Context(), pinCode, email); err != nil {
+	if err := svc.ClaimPinCode(c.Request.Context(), pinCode, email); err != nil {
 		httputil.WriteError(c, err)
 		return
 	}
@@ -51,6 +72,11 @@ func (h *Handler) claimPinCode(c *gin.Context) {
 }
 
 func (h *Handler) verifyPinCode(c *gin.Context) {
+	svc := h.getSvc()
+	if svc == nil {
+		httputil.WriteError(c, apperr.Email.ErrInvalidBody)
+		return
+	}
 	var req struct {
 		PinCode string `json:"pinCode"`
 	}
@@ -66,7 +92,7 @@ func (h *Handler) verifyPinCode(c *gin.Context) {
 		return
 	}
 
-	verified, err := h.svc.VerifyPinCode(c.Request.Context(), pinCode)
+	verified, err := svc.VerifyPinCode(c.Request.Context(), pinCode)
 	if err != nil {
 		_ = c.Error(err)
 		httputil.WriteError(c, err)

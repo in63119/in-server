@@ -1,6 +1,13 @@
 package config
 
-import "github.com/kelseyhightower/envconfig"
+import (
+	"context"
+	"fmt"
+	"os"
+	"strings"
+
+	"github.com/kelseyhightower/envconfig"
+)
 
 type Config struct {
 	Env  string `envconfig:"ENV" default:"development"`
@@ -57,4 +64,46 @@ func Load() (Config, error) {
 	var cfg Config
 	err := envconfig.Process("", &cfg)
 	return cfg, err
+}
+
+func Reload(ctx context.Context) (Config, error) {
+	cfg, err := Load()
+	if err != nil {
+		return cfg, err
+	}
+
+	region := cfg.AWS.Region
+	if region == "" {
+		region = "ap-northeast-2"
+	}
+
+	if strings.TrimSpace(cfg.AWS.Param) != "" {
+		ssmPath := fmt.Sprintf("%s/%s", strings.TrimSuffix(cfg.AWS.Param, "/"), strings.TrimSpace(cfg.Env))
+		ssmCfg := cfg
+		ssmCfg.AWS.Param = ssmPath
+		if err := LoadSSM(ctx, &ssmCfg); err != nil {
+			return cfg, err
+		}
+		cfg = ssmCfg
+	}
+
+	if ads := strings.TrimSpace(getEnv("AWS_SSM_ADS")); ads != "" {
+		adsCfg := cfg
+		adsCfg.AWS.Param = ads
+		if err := LoadSSM(ctx, &adsCfg); err != nil {
+			return cfg, err
+		}
+		cfg = adsCfg
+	}
+
+	return cfg, nil
+}
+
+func getEnv(key string) string {
+	return strings.TrimSpace(os.Getenv(key))
+}
+
+// GetEnv trims and returns the environment variable value.
+func GetEnv(key string) string {
+	return getEnv(key)
 }
