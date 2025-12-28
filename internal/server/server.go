@@ -11,11 +11,13 @@ import (
 
 	emailhandler "in-server/internal/handler/email"
 	googhandler "in-server/internal/handler/google"
+	mediahandler "in-server/internal/handler/media"
 	posthandler "in-server/internal/handler/posts"
 	subscriberhandler "in-server/internal/handler/subscriber"
 	visitorshandler "in-server/internal/handler/visitors"
 	emailsvc "in-server/internal/service/email"
 	googlesvc "in-server/internal/service/google"
+	mediasvc "in-server/internal/service/media"
 	postsvc "in-server/internal/service/post"
 	subscribersvc "in-server/internal/service/subscriber"
 	visitorsvc "in-server/internal/service/visitor"
@@ -28,6 +30,7 @@ type Server struct {
 	log    *zap.Logger
 
 	emailHandler      *emailhandler.Handler
+	mediaHandler      *mediahandler.Handler
 	postHandler       *posthandler.Handler
 	visitorsHandler   *visitorshandler.Handler
 	subscriberHandler *subscriberhandler.Handler
@@ -89,11 +92,18 @@ func (s *Server) reloadAll(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	mediaSvc, err := mediasvc.New(ctx, newCfg)
+	if err != nil {
+		return err
+	}
 
 	s.mu.Lock()
 	s.cfg = newCfg
 	if s.emailHandler != nil {
 		s.emailHandler.SetService(emailSvc)
+	}
+	if s.mediaHandler != nil {
+		s.mediaHandler.SetService(mediaSvc)
 	}
 	if s.postHandler != nil {
 		s.postHandler.SetService(postSvc)

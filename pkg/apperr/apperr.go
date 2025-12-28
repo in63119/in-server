@@ -102,6 +102,8 @@ var Post = struct {
 	ErrS3BucketMissing  *Error
 	ErrUploadMetadata   *Error
 	ErrPublishFailed    *Error
+	ErrNoImageFile      *Error
+	ErrInvalidUpload    *Error
 }{
 	ErrInvalidBody:      New("INVALID_BODY", "invalid request body", http.StatusBadRequest),
 	ErrAdminCodeMissing: New("ADMIN_CODE_MISSING", "admin code is required", http.StatusBadRequest),
@@ -111,6 +113,8 @@ var Post = struct {
 	ErrS3BucketMissing:  New("AWS_S3_BUCKET_MISSING", "aws s3 bucket is empty", http.StatusInternalServerError),
 	ErrUploadMetadata:   New("FAILED_UPLOAD_METADATA", "failed to upload metadata", http.StatusInternalServerError),
 	ErrPublishFailed:    New("FAILED_PUBLISH_POST", "failed to publish post", http.StatusInternalServerError),
+	ErrNoImageFile:      New("NO_IMAGE_FILE", "image file is missing", http.StatusBadRequest),
+	ErrInvalidUpload:    New("INVALID_UPLOAD", "failed to upload media", http.StatusInternalServerError),
 }
 
 var Email = struct {
