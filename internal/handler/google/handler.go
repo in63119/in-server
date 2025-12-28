@@ -1,6 +1,7 @@
 package google
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -13,11 +14,14 @@ import (
 )
 
 type Handler struct {
-	mu  sync.RWMutex
-	svc *googlesvc.Service
+	mu        sync.RWMutex
+	svc       *googlesvc.Service
+	reloadAll func(ctx context.Context) error
 }
 
-func New(svc *googlesvc.Service) *Handler { return &Handler{svc: svc} }
+func New(svc *googlesvc.Service, reloadAll func(ctx context.Context) error) *Handler {
+	return &Handler{svc: svc, reloadAll: reloadAll}
+}
 
 func (h *Handler) getSvc() *googlesvc.Service {
 	h.mu.RLock()
@@ -29,6 +33,11 @@ func (h *Handler) setSvc(svc *googlesvc.Service) {
 	h.mu.Lock()
 	h.svc = svc
 	h.mu.Unlock()
+}
+
+// SetService is used by server reloads to swap in a refreshed service instance.
+func (h *Handler) SetService(svc *googlesvc.Service) {
+	h.setSvc(svc)
 }
 
 func (h *Handler) Register(r *gin.RouterGroup) {
@@ -98,19 +107,12 @@ func (h *Handler) handleCallback(c *gin.Context) {
 		return
 	}
 
-	newCfg, err := config.Reload(c.Request.Context())
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"ok": false, "message": err.Error()})
-		return
+	if h.reloadAll != nil {
+		if err := h.reloadAll(c.Request.Context()); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"ok": false, "message": err.Error()})
+			return
+		}
 	}
-
-	// Reinitialize Google service with refreshed config so subsequent requests use latest token.
-	newSvc, err := googlesvc.New(c.Request.Context(), newCfg)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"ok": false, "message": err.Error()})
-		return
-	}
-	h.setSvc(newSvc)
 
 	c.JSON(http.StatusOK, gin.H{"ok": true, "refreshToken": refreshToken})
 }

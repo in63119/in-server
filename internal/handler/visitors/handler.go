@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 
@@ -14,10 +15,23 @@ import (
 )
 
 type Handler struct {
+	mu  sync.RWMutex
 	svc *visitor.Service
 }
 
 func New(svc *visitor.Service) *Handler { return &Handler{svc: svc} }
+
+func (h *Handler) SetService(svc *visitor.Service) {
+	h.mu.Lock()
+	h.svc = svc
+	h.mu.Unlock()
+}
+
+func (h *Handler) getSvc() *visitor.Service {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return h.svc
+}
 
 func (h *Handler) Register(r *gin.RouterGroup) {
 	r.GET("", h.count)
@@ -27,7 +41,12 @@ func (h *Handler) Register(r *gin.RouterGroup) {
 }
 
 func (h *Handler) count(c *gin.Context) {
-	total, err := h.svc.Count()
+	svc := h.getSvc()
+	if svc == nil {
+		httputil.WriteError(c, apperr.Visitors.ErrVisitCount)
+		return
+	}
+	total, err := svc.Count()
 	if err != nil {
 		httputil.WriteError(c, err)
 		return
@@ -36,6 +55,11 @@ func (h *Handler) count(c *gin.Context) {
 }
 
 func (h *Handler) visit(c *gin.Context) {
+	svc := h.getSvc()
+	if svc == nil {
+		httputil.WriteError(c, apperr.Visitors.ErrAddVisit)
+		return
+	}
 	var req struct {
 		URL string `json:"url"`
 	}
@@ -51,7 +75,7 @@ func (h *Handler) visit(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.Visit(ip, req.URL); err != nil {
+	if err := svc.Visit(ip, req.URL); err != nil {
 		log.Println(err)
 		httputil.WriteError(c, err)
 		return
@@ -61,13 +85,18 @@ func (h *Handler) visit(c *gin.Context) {
 }
 
 func (h *Handler) check(c *gin.Context) {
+	svc := h.getSvc()
+	if svc == nil {
+		httputil.WriteError(c, apperr.Visitors.ErrCheckVisit)
+		return
+	}
 	ip := clientIP(c)
 	if ip == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"code": "INVALID_IP", "message": "invalid ip"})
 		return
 	}
 
-	visited, err := h.svc.HasVisited(ip)
+	visited, err := svc.HasVisited(ip)
 	if err != nil {
 		httputil.WriteError(c, err)
 		return
@@ -77,6 +106,11 @@ func (h *Handler) check(c *gin.Context) {
 }
 
 func (h *Handler) list(c *gin.Context) {
+	svc := h.getSvc()
+	if svc == nil {
+		httputil.WriteError(c, apperr.Visitors.ErrVisitLogs)
+		return
+	}
 	limitParam := strings.TrimSpace(c.Query("limit"))
 	limit := uint64(50)
 	if limitParam != "" {
@@ -91,7 +125,7 @@ func (h *Handler) list(c *gin.Context) {
 		}
 	}
 
-	entries, err := h.svc.List(limit)
+	entries, err := svc.List(limit)
 	if err != nil {
 		httputil.WriteError(c, err)
 		return

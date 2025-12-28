@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 
@@ -14,9 +15,24 @@ import (
 	"in-server/pkg/apperr"
 )
 
-type Handler struct{ svc *post.Service }
+type Handler struct {
+	mu  sync.RWMutex
+	svc *post.Service
+}
 
 func New(svc *post.Service) *Handler { return &Handler{svc: svc} }
+
+func (h *Handler) SetService(svc *post.Service) {
+	h.mu.Lock()
+	h.svc = svc
+	h.mu.Unlock()
+}
+
+func (h *Handler) getSvc() *post.Service {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return h.svc
+}
 
 func (h *Handler) Register(r *gin.RouterGroup) {
 	r.GET("", h.list)
@@ -25,7 +41,12 @@ func (h *Handler) Register(r *gin.RouterGroup) {
 }
 
 func (h *Handler) list(c *gin.Context) {
-	items, err := h.svc.List()
+	svc := h.getSvc()
+	if svc == nil {
+		httputil.WriteError(c, apperr.Post.ErrInvalidRequest)
+		return
+	}
+	items, err := svc.List()
 	if err != nil {
 		httputil.WriteError(c, err)
 		return
@@ -34,12 +55,17 @@ func (h *Handler) list(c *gin.Context) {
 }
 
 func (h *Handler) create(c *gin.Context) {
+	svc := h.getSvc()
+	if svc == nil {
+		httputil.WriteError(c, apperr.Post.ErrInvalidRequest)
+		return
+	}
 	var req post.Post
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body"})
 		return
 	}
-	if err := h.svc.Create(req); err != nil {
+	if err := svc.Create(req); err != nil {
 		httputil.WriteError(c, err)
 		return
 	}
@@ -47,6 +73,11 @@ func (h *Handler) create(c *gin.Context) {
 }
 
 func (h *Handler) publish(c *gin.Context) {
+	svc := h.getSvc()
+	if svc == nil {
+		httputil.WriteError(c, apperr.Post.ErrInvalidRequest)
+		return
+	}
 	var req struct {
 		AdminCode   string          `json:"adminCode"`
 		MetadataURL *string         `json:"metadataUrl"`
@@ -70,7 +101,7 @@ func (h *Handler) publish(c *gin.Context) {
 		return
 	}
 
-	savedMetadataURL, err := h.svc.Publish(c.Request.Context(), adminCode, payload, metadataURL)
+	savedMetadataURL, err := svc.Publish(c.Request.Context(), adminCode, payload, metadataURL)
 	if err != nil {
 		httputil.WriteError(c, err)
 		return

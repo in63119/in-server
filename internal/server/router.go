@@ -43,11 +43,17 @@ func (s *Server) registerRoutes() {
 	}
 
 	healthHandler := health.New(s.cfg)
-	googleHandler := googhandler.New(googleSvc)
+	googleHandler := googhandler.New(googleSvc, s.reloadAll)
 	emailHandler := emailhandler.New(emailSvc)
 	postHandler := posthandler.New(postSvc)
 	visitorsHandler := visitorshandler.New(visitorSvc)
 	subscriberHandler := subscriberhandler.New(subscriberSvc)
+
+	s.googleHandler = googleHandler
+	s.emailHandler = emailHandler
+	s.postHandler = postHandler
+	s.visitorsHandler = visitorsHandler
+	s.subscriberHandler = subscriberHandler
 
 	r := s.engine
 	{

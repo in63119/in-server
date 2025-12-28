@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 
@@ -12,9 +13,24 @@ import (
 	"in-server/pkg/apperr"
 )
 
-type Handler struct{ svc *subscriber.Service }
+type Handler struct {
+	mu  sync.RWMutex
+	svc *subscriber.Service
+}
 
 func New(svc *subscriber.Service) *Handler { return &Handler{svc: svc} }
+
+func (h *Handler) SetService(svc *subscriber.Service) {
+	h.mu.Lock()
+	h.svc = svc
+	h.mu.Unlock()
+}
+
+func (h *Handler) getSvc() *subscriber.Service {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return h.svc
+}
 
 func (h *Handler) Register(r *gin.RouterGroup) {
 	r.GET("", h.count)
@@ -23,7 +39,12 @@ func (h *Handler) Register(r *gin.RouterGroup) {
 }
 
 func (h *Handler) count(c *gin.Context) {
-	total, err := h.svc.Count()
+	svc := h.getSvc()
+	if svc == nil {
+		httputil.WriteError(c, apperr.Subscriber.ErrGetSubscribers)
+		return
+	}
+	total, err := svc.Count()
 	if err != nil {
 		httputil.WriteError(c, err)
 		return
@@ -32,6 +53,11 @@ func (h *Handler) count(c *gin.Context) {
 }
 
 func (h *Handler) create(c *gin.Context) {
+	svc := h.getSvc()
+	if svc == nil {
+		httputil.WriteError(c, apperr.Subscriber.ErrInvalidBody)
+		return
+	}
 	var req struct {
 		Email string `json:"email"`
 	}
@@ -47,7 +73,7 @@ func (h *Handler) create(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.Create("", req.Email); err != nil {
+	if err := svc.Create("", req.Email); err != nil {
 		httputil.WriteError(c, err)
 		return
 	}
@@ -56,6 +82,11 @@ func (h *Handler) create(c *gin.Context) {
 }
 
 func (h *Handler) list(c *gin.Context) {
+	svc := h.getSvc()
+	if svc == nil {
+		httputil.WriteError(c, apperr.Subscriber.ErrGetSubscribers)
+		return
+	}
 	var req struct {
 		AdminCode string `json:"adminCode"`
 	}
@@ -71,7 +102,7 @@ func (h *Handler) list(c *gin.Context) {
 		return
 	}
 
-	subscribers, err := h.svc.List(0, 0)
+	subscribers, err := svc.List(0, 0)
 	if err != nil {
 		httputil.WriteError(c, err)
 		return
